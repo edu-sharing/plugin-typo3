@@ -1,0 +1,82 @@
+.modal-body {
+    padding: 0;
+}
+
+#edusharing_repository_frame {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    border: 0;
+}
+
+#edusharing_object_dialog {
+    padding: 15px;
+}
+
+#edusharing_object_dialog {
+    display: none;
+}
+
+#edusharing_object_dialog fieldset {
+    margin: 20px 0;
+}
+
+label[for=edusharing_title_display] {
+    margin-bottom: 0;
+}
+
+input[type="radio"] {
+    margin-top: -1px;
+    vertical-align: middle;
+    margin-right: 15px;
+}
+
+#edusharing_fieldset_dimensions div {
+    display: inline-block;
+    width: 100px;
+}
+
+#edusharing_fieldset_float label {
+    background-repeat: no-repeat;
+    background-position: left center;
+    padding-left: 50px;
+}
+
+#edusharing_fieldset_float label, edusharing_fieldset_float input {
+    height: 40px;
+    padding-top: 11px;
+}
+
+label[for=edusharing_float_left] {
+    background: url('../../RTE_Plugins/icons/float_left.png');
+}
+
+label[for=edusharing_float_right] {
+    background: url('../../RTE_Plugins/icons/float_right.png');
+}
+
+label[for=edusharing_float_none] {
+    background: url('../../RTE_Plugins/icons/float_none.png');
+}
+
+
+#edusharing_fieldset_version h2 {
+    margin-bottom: 6px;
+}
+
+#edusharing_fieldset_version label, #edusharing_fieldset_version input {
+    height: 24px;
+}
+
+#edusharing_version_display_text {
+    color: #666;
+    font-weight: 600;
+    display: inline-block;
+    margin-bottom: 12px;
+}
+
+#edusharing_preview_image {
+    float: right;
+    max-width: 400px;
+    max-height: 400px;
+}

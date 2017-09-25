@@ -1,0 +1,13 @@
+# Load default processing options
+imports:
+    - { resource: "EXT:rte_ckeditor/Configuration/RTE/Processing.yaml" }
+    - { resource: "EXT:rte_ckeditor/Configuration/RTE/Editor/Base.yaml" }
+    - { resource: "EXT:rte_ckeditor/Configuration/RTE/Editor/Plugins.yaml" }
+
+editor:
+  externalPlugins:
+    edusharing: { resource: "EXT:edusharing/Resources/Public/RTE_Plugins/edusharing.js"}
+  allowedContent:
+    div: {
+            attributes: ['style']
+        }
