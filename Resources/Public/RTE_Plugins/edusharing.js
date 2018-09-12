@@ -69,7 +69,11 @@ CKEDITOR.plugins.add('edusharing', {
 });
 
 function action() {
-    parent.document.getElementById('edusharing_repository_frame').style.display="none";
+    try {
+        parent.document.getElementById('edusharing_repository_frame').style.display="none";
+    } catch(e) {
+        console.log(e);
+    }
     parent.document.getElementById('edusharing_object_dialog').style.display="block";
 
     if(node.mimetype.indexOf('video') === -1 && node.mimetype.indexOf('image') === -1) {
