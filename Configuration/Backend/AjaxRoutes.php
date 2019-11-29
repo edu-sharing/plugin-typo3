@@ -2,10 +2,10 @@
 return [
     'getAppconfig' => [
         'path' => '/edusharing/appconfig',
-        'target' => \metaVentis\edusharing\Controller\Edu::class . '::getAppconfig'
+        'target' => \Metaventis\Edusharing\Controller\Edu::class . '::getAppconfig'
     ],
     'getTicket' => [
         'path' => '/edusharing/ticket',
-        'target' => \metaVentis\edusharing\Controller\Edu::class . '::getTicket'
+        'target' => \Metaventis\Edusharing\Controller\Edu::class . '::getTicket'
     ]
 ];

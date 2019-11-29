@@ -6,59 +6,78 @@ var node;
 
 CKEDITOR.plugins.add('edusharing', {
     icons: 'edusharing',
-    init: function(editor) {
+    init: function (editor) {
 
         $.ajax({
             url: TYPO3.settings.ajaxUrls['getAppconfig'],
             method: 'GET',
-            success: function(response) {
+            success: function (response) {
                 appconfig = response;
+            },
+            error: function (xhr, errorType, error) {
+                console.error("Failed to get app config: " + error);
             }
         });
 
         $.ajax({
             url: TYPO3.settings.ajaxUrls['getTicket'],
             method: 'GET',
-            success: function(response) {
+            success: function (response) {
                 ticket = response;
+            },
+            error: function (xhr, errorType, error) {
+                console.error("Failed to get ticket: " + error);
             }
+
         });
 
-        editor.ui.addButton ('edusharing', {
+        editor.ui.addButton('edusharing', {
             label: 'edu-sharing',
             tooolbar: 'basicstyles',
             command: 'openModal'
         });
 
         editor.addCommand('openModal', {
-            exec: function(editor){
+            exec: function (editor) {
                 require([
                     'TYPO3/CMS/Backend/Modal'
-                ], function(Modal) {
+                ], function (Modal) {
                     var configuration = {
                         title: 'edu-sharing',
-                        content: getModalContent(),
+                        content: $('<div>').html(getModalContent()),
                         size: Modal.sizes.large,
                         buttons: [
                             {
                                 text: 'Einfügen',
                                 active: true,
-                                trigger: function() {
+                                trigger: function () {
+                                    if (!node) {
+                                        require(['TYPO3/CMS/Backend/Notification'], (Notification) => {
+                                            Notification.notice(
+                                                'No Content Selected',
+                                                'Please click "Apply" on an element in order to insert content.'
+                                            );
+                                        });
+                                        return;
+                                    }
                                     editor.insertHtml(getInsertHtml());
+                                    node = null;
                                     Modal.dismiss();
                                 }
                             }, {
                                 text: 'Abbrechen',
-                                trigger: function() {
+                                trigger: function () {
                                     Modal.dismiss();
                                 }
                             }
                         ],
-                        callback: function() {
-                            parent.window.addEventListener("message", function(event) {if(event.data.event=="APPLY_NODE"){
-                                node = event.data.node;
-                                action();
-                            }}, false);
+                        callback: function () {
+                            parent.window.addEventListener("message", function (event) {
+                                if (event.data.event == "APPLY_NODE") {
+                                    node = event.data.node;
+                                    action();
+                                }
+                            }, false);
                         }
                     };
                     Modal.advanced(configuration);
@@ -70,13 +89,13 @@ CKEDITOR.plugins.add('edusharing', {
 
 function action() {
     try {
-        parent.document.getElementById('edusharing_repository_frame').style.display="none";
-    } catch(e) {
+        parent.document.getElementById('edusharing_repository_frame').style.display = "none";
+    } catch (e) {
         console.log(e);
     }
-    parent.document.getElementById('edusharing_object_dialog').style.display="block";
+    parent.document.getElementById('edusharing_object_dialog').style.display = "block";
 
-    if(node.mimetype.indexOf('video') === -1 && node.mimetype.indexOf('image') === -1) {
+    if (node.mimetype.indexOf('video') === -1 && node.mimetype.indexOf('image') === -1) {
         parent.document.getElementById('edusharing_fieldset_dimensions').style.display = 'none';
         parent.document.getElementById('edusharing_fieldset_float').style.display = 'none';
     }
@@ -88,10 +107,10 @@ function action() {
     parent.document.getElementById('edusharing_version_current').value = node.version;
     parent.document.getElementById('edusharing_version_display').textContent = node.version;
     node.ratio = node.width / node.height;
-    parent.document.getElementById('edusharing_height').onkeyup = function(event) {
+    parent.document.getElementById('edusharing_height').onkeyup = function (event) {
         parent.document.getElementById('edusharing_width').value = (parent.document.getElementById('edusharing_height').value * node.ratio).toFixed();
     };
-    parent.document.getElementById('edusharing_width').onkeyup = function(event) {
+    parent.document.getElementById('edusharing_width').onkeyup = function (event) {
         parent.document.getElementById('edusharing_height').value = (parent.document.getElementById('edusharing_width').value * node.ratio).toFixed();
     };
 
@@ -99,16 +118,16 @@ function action() {
 
 function getPreviewUrl() {
     var nodeId = node.object_url.split('/').slice(-1).pop();
-    return appconfig.repo_url + 'preview?nodeId=' + nodeId + '&ticket=' + ticket;
+    return appconfig.repo_url + 'preview?nodeId=' + nodeId;
 }
 
 function getInsertHtml() {
-    if(node.mimetype.indexOf('video') !== -1 || node.mimetype.indexOf('image') !== -1) {
+    if (node.mimetype.indexOf('video') !== -1 || node.mimetype.indexOf('image') !== -1) {
 
-        var style = 'style="width:' + parent.document.getElementById('edusharing_width').value + 'px;'+
+        var style = 'style="width:' + parent.document.getElementById('edusharing_width').value + 'px;' +
             'height:' + parent.document.getElementById('edusharing_height').value + 'px;';
 
-        switch(parent.document.querySelector('input[name="edusharing_float"]:checked').value) {
+        switch (parent.document.querySelector('input[name="edusharing_float"]:checked').value) {
             case 'left':
                 style += 'float:left;"';
                 break;
@@ -143,36 +162,36 @@ function getModalContent() {
     return '' +
         '<iframe id="edusharing_repository_frame" src="' + appconfig.repo_url + 'components/search?ticket=' + ticket + '&reurl=' + reurl + '"></iframe>' +
         '<div id="edusharing_object_dialog">' +
-            '<img id="edusharing_preview_image" src="" style="float:right;  ">' +
-            '<label for="edusharing_title_display">Titel</label>' +
-            '<h1 id="edusharing_title_display"></h1>' +
-            '<fieldset id="edusharing_fieldset_dimensions">' +
-                '<h2>Dimensionen</h2>'+
-                '<div>' +
-                    '<label class="edusharing_label">H&ouml;he</label><br/>' +
-                    '<input id="edusharing_height" onkeypress="return event.charCode >= 48 && event.charCode <= 57" maxlength="4" size="4"> px' +
-                '</div>' +
-                '<div>' +
-                    '<label class="edusharing_label">Breite</label><br/>' +
-                    '<input id="edusharing_width" onkeypress="return event.charCode >= 48 && event.charCode <= 57" maxlength="4" size="4"> px' +
-                '</div>' +
-            '</fieldset>' +
-            '<fieldset id="edusharing_fieldset_float">' +
-                '<h2>Ausrichtung</h2>'+
-                '<input type="radio" id="edusharing_float_left" name="edusharing_float" value="left">' +
-                '<label for="edusharing_float_left">links umflie&szlig;end</label><br/>' +
-                '<input type="radio" id="edusharing_float_right" name="edusharing_float" value="right">' +
-                '<label for="edusharing_float_right">rechts umflie&szlig;end</label><br/>' +
-                '<input type="radio" id="edusharing_float_none" name="edusharing_float" value="none" checked>' +
-                '<label for="edusharing_float_none">keine</label>' +
-            '</fieldset>' +
-            '<fieldset id="edusharing_fieldset_version">' +
-                '<h2>Version</h2>'+
-                '<span id="edusharing_version_display_text">aktuelle Version: ' + '<span id="edusharing_version_display"></span></span><br/>' +
-                '<input type="radio" id="edusharing_version_current" name="edusharing_version" value="">' +
-                '<label for="edusharing_version_current">genau diese Version</label><br/>' +
-                '<input type="radio" id="edusharing_version_latest" name="edusharing_version" value="-1" checked>' +
-                '<label for="edusharing_version_latest">immer die aktuellste</label>' +
-            '</fieldset>'
+        '<img id="edusharing_preview_image" src="" style="float:right;  ">' +
+        '<label for="edusharing_title_display">Titel</label>' +
+        '<h1 id="edusharing_title_display"></h1>' +
+        '<fieldset id="edusharing_fieldset_dimensions">' +
+        '<h2>Dimensionen</h2>' +
+        '<div>' +
+        '<label class="edusharing_label">H&ouml;he</label><br/>' +
+        '<input id="edusharing_height" onkeypress="return event.charCode >= 48 && event.charCode <= 57" maxlength="4" size="4"> px' +
+        '</div>' +
+        '<div>' +
+        '<label class="edusharing_label">Breite</label><br/>' +
+        '<input id="edusharing_width" onkeypress="return event.charCode >= 48 && event.charCode <= 57" maxlength="4" size="4"> px' +
+        '</div>' +
+        '</fieldset>' +
+        '<fieldset id="edusharing_fieldset_float">' +
+        '<h2>Ausrichtung</h2>' +
+        '<input type="radio" id="edusharing_float_left" name="edusharing_float" value="left">' +
+        '<label for="edusharing_float_left">links umflie&szlig;end</label><br/>' +
+        '<input type="radio" id="edusharing_float_right" name="edusharing_float" value="right">' +
+        '<label for="edusharing_float_right">rechts umflie&szlig;end</label><br/>' +
+        '<input type="radio" id="edusharing_float_none" name="edusharing_float" value="none" checked>' +
+        '<label for="edusharing_float_none">keine</label>' +
+        '</fieldset>' +
+        '<fieldset id="edusharing_fieldset_version">' +
+        '<h2>Version</h2>' +
+        '<span id="edusharing_version_display_text">aktuelle Version: ' + '<span id="edusharing_version_display"></span></span><br/>' +
+        '<input type="radio" id="edusharing_version_current" name="edusharing_version" value="">' +
+        '<label for="edusharing_version_current">genau diese Version</label><br/>' +
+        '<input type="radio" id="edusharing_version_latest" name="edusharing_version" value="-1" checked>' +
+        '<label for="edusharing_version_latest">immer die aktuellste</label>' +
+        '</fieldset>' +
         '</div>';
 }

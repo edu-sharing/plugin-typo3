@@ -1,0 +1,29 @@
+# cat=Setup; type=user[Metaventis\Edusharing\Settings\ApplicationXmlDownloadLink->render]; label=Application XML: Enter this URL in Edu-Sharing under "Admin-Tools" / "Applications" and hit "Connect".
+application_xml_url =
+
+# cat=Setup; type=user[Metaventis\Edusharing\Settings\SetupForm->render]; label=Repository URL: Enter the URL of your Edu-Sharing instance and hit "Setup repository" to fill in the required variables in the "Repo" tab.
+repo_setup = http://your-server.de/edu-sharing/
+
+# cat=Repo; type=string; label=Repo ID: Edu-Sharing's identifier
+repo_id =
+
+# cat=Repo; type=string; label=Repo URL: The URL of Edu-Sharing
+repo_url =
+
+# cat=Repo; type=string; label=Repo Guest User: The username to use for frontend users who have not logged into Typo3 when fetching content from Edu-Sharing
+repo_guest_user = esguest
+
+# cat=Repo; type=user[Metaventis\Edusharing\Settings\TextArea->render]; label=Repo Public Key: Edu-Sharing's public RSA key
+repo_public_key =
+
+# cat=Extension; type=string; label=App ID: Uniquely identify this Typo3 instance to Edu-Sharing
+app_id =
+
+# cat=Extension; type=string; label=App URL: The root (frontend) URL of this Typo3 instance
+app_url =
+
+# cat=Extension; type=user[Metaventis\Edusharing\Settings\TextArea->render]; label=App Public Key: This plugin's public RSA key, made available to Edu-Sharing
+app_public_key =
+
+# cat=Extension; type=user[Metaventis\Edusharing\Settings\TextArea->render]; label=App Private Key: This plugin's private RSA key, has to be kept secret
+app_private_key =

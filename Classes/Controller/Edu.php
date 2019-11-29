@@ -1,32 +1,31 @@
 <?php
 
- namespace metaVentis\edusharing\Controller;
+namespace Metaventis\Edusharing\Controller;
 
- class Edu extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController {
+use Metaventis\Edusharing\Settings\Config;
 
-     public function getAppconfig(
-         \Psr\Http\Message\ServerRequestInterface $request,
-         \Psr\Http\Message\ResponseInterface $response
-     ) {
-         $response->getBody()->write(json_encode(array('repo_url' => \metaVentis\edusharing\Appconfig::$repo_url, 'app_url'=> \metaVentis\edusharing\Appconfig::$app_url, 'test' => 'testo')));
-         return $response;
-     }
+class Edu extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
+{
 
-     public function getTicket(
-         \Psr\Http\Message\ServerRequestInterface $request,
-         \Psr\Http\Message\ResponseInterface $response
-     ) {
-         $library =  new \metaVentis\edusharing\Library();
-         $response->getBody()->write(json_encode($library->getTicket()));
-         return $response;
-     }
+    public function getAppconfig(
+        \Psr\Http\Message\ServerRequestInterface $request,
+        \Psr\Http\Message\ResponseInterface $response
+    ) {
+        $config = Config::getInstance();
+        $response->getBody()->write(json_encode(array(
+            'repo_url' => $config->get(Config::REPO_URL),
+            'app_url' => $config->get(Config::APP_URL)
+        )));
+        return $response;
+    }
 
-     public function getPreview(
-         \Psr\Http\Message\ServerRequestInterface $request,
-         \Psr\Http\Message\ResponseInterface $response
-     ) {
-         $library =  new \metaVentis\edusharing\Library();
-         $response->getBody()->write(json_encode($library->getPreview($request->getQueryParams()['nodeId'])));
-         return $response;
-     }
- }
+    public function getTicket(
+        \Psr\Http\Message\ServerRequestInterface $request,
+        \Psr\Http\Message\ResponseInterface $response
+    ) {
+        $library =  new \Metaventis\Edusharing\Library();
+        $backendUser = $GLOBALS['BE_USER']->user;
+        $response->getBody()->write(json_encode($library->getTicket($backendUser)));
+        return $response;
+    }
+}
