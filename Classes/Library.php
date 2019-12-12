@@ -35,7 +35,7 @@ class Library
 
     public function getSecurityParams($eduObj)
     {
-        $user = $this->getFrontendUser() ?? $this->getGuestUser();
+        $user = $this->getUser();
         // Get a ticket for the user to generate a user record on the edu-sharing instance in case it didn't exist before. This uses a
         // side-effect of `getTicket()`.
         // TODO: Find a more elegant solution, that won't do additional work if the user already exists and doesn't rely on side-effects.
@@ -57,8 +57,11 @@ class Library
         return $paramString;
     }
 
-    public function getTicket(array $user)
+    public function getTicket(array $user = null)
     {
+        if (!$user) {
+            $user = $this->getUser();
+        }
         $userData = $this->readUserData($user);
         $config = Config::getInstance();
         $eduSoapClient = new EduSoapClient($config->get(Config::REPO_URL) . '/services/authbyapp?wsdl');
@@ -91,15 +94,6 @@ class Library
         return $ticket;
     }
 
-    public function getGuestUser(): array
-    {
-        $config = Config::getInstance();
-        $username = $config->get(Config::REPO_GUEST_USER);
-        return [
-            'username' => $username
-        ];
-    }
-
     public function getSavedSearch($nodeId, $maxItems, $skipCount, $sortProperty, $template)
     {
         $config = Config::getInstance();
@@ -113,7 +107,10 @@ class Library
         $url .= 'sortProperties=' . $sortProperty . '&sortAscending=false';
 
         $curl_handle = curl_init($url);
-        $headers = array('Accept: application/json');
+        $headers = array(
+            'Authorization: EDU-TICKET ' . $this->getTicket(),
+            'Accept: application/json',
+        );
         curl_setopt($curl_handle, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($curl_handle, CURLOPT_FAILONERROR, 1);
         curl_setopt($curl_handle, CURLOPT_FOLLOWLOCATION, 1);
@@ -162,8 +159,16 @@ class Library
         return $return;
     }
 
+    private function getUser(): array {
+        return $this->getBackendUser() ?? $this->getFrontendUser() ?? $this->getGuestUser();
+    }
 
-    /*
+    private function getBackendUser(): ?array
+    {
+        return $GLOBALS['BE_USER']->user;
+    }
+
+    /**
      * Return the frontend username identified by the respective session cookie.
      * 
      * Returns null if no session cookie was provided or no matching user could be found.
@@ -195,6 +200,15 @@ class Library
             return null;
         }
         return $user;
+    }
+
+    private function getGuestUser(): array
+    {
+        $config = Config::getInstance();
+        $username = $config->get(Config::REPO_GUEST_USER);
+        return [
+            'username' => $username
+        ];
     }
 
     /**

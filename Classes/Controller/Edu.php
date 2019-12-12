@@ -24,8 +24,7 @@ class Edu extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
         \Psr\Http\Message\ResponseInterface $response
     ) {
         $library = new \Metaventis\Edusharing\Library();
-        $backendUser = $GLOBALS['BE_USER']->user;
-        $response->getBody()->write(json_encode($library->getTicket($backendUser)));
+        $response->getBody()->write(json_encode($library->getTicket()));
         return $response;
     }
 
