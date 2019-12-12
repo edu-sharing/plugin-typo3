@@ -14,10 +14,17 @@ $(document).ready(function () {
 
         esObject.wrap('<span style="' + esObject.attr('style') + '"></span>');
 
-        var url = 'index.php?eID=edusharing_proxy&edusharing_uid=' + esObject.attr("data-edusharing_uid");
+        var url = 'index.php?eID=edusharing_proxy';
         url += '&videoFormat=' + videoFormat;
         url += '&edusharing_width=' + parseInt(esObject.css('width'));
         url += '&edusharing_height=' + parseInt(esObject.css('height'));
+        url += '&cache=' + $.now();
+
+        $.each(esObject[0].attributes, function () {
+            if (this.specified) {
+                url += '&' + this.name + '=' + this.value;
+            }
+        });
 
         if (typeof wrapper == 'undefined')
             var wrapper = esObject.parent();

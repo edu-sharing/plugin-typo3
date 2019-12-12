@@ -23,9 +23,29 @@ class Edu extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
         \Psr\Http\Message\ServerRequestInterface $request,
         \Psr\Http\Message\ResponseInterface $response
     ) {
-        $library =  new \Metaventis\Edusharing\Library();
+        $library = new \Metaventis\Edusharing\Library();
         $backendUser = $GLOBALS['BE_USER']->user;
         $response->getBody()->write(json_encode($library->getTicket($backendUser)));
         return $response;
     }
+
+    public function getSavedSearch(
+        \Psr\Http\Message\ServerRequestInterface $request,
+        \Psr\Http\Message\ResponseInterface $response
+    ) {
+        $data = $request->getParsedBody();
+        $library = new \Metaventis\Edusharing\Library();
+        $response->getBody()
+            ->write(json_encode(
+                $library->getSavedSearch(
+                    $data['nodeId'],
+                    $data['maxItems'],
+                    $data['skipCount'],
+                    $data['sortProperty'],
+                    $data['template']
+                )
+            ));
+        return $response;
+    }
+
 }

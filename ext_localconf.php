@@ -30,9 +30,6 @@ $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['proc
 /*Register AJAX endpoint*/
 $GLOBALS['TYPO3_CONF_VARS']['FE']['eID_include']['edusharing_proxy'] = 'EXT:edusharing/Classes/Ajax/Proxy.php';
 
-/*Register reurl*/
-$GLOBALS['TYPO3_CONF_VARS']['FE']['eID_include']['edusharing_populate'] = 'EXT:edusharing/Classes/Ajax/Populate.php';
-
 $GLOBALS['TYPO3_CONF_VARS']['FE']['eID_include']['edusharing_application_xml'] = 'EXT:edusharing/Classes/Settings/ApplicationXml.php';
 
 if (TYPO3_MODE === 'BE') {

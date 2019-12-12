@@ -7,5 +7,9 @@ return [
     'getTicket' => [
         'path' => '/edusharing/ticket',
         'target' => \Metaventis\Edusharing\Controller\Edu::class . '::getTicket'
+    ],
+    'getSavedSearch' => [
+        'path' => '/edusharing/savedsearch',
+        'target' => \Metaventis\Edusharing\Controller\Edu::class . '::getSavedSearch'
     ]
 ];

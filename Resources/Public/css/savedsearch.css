@@ -1,0 +1,54 @@
+.edusharing_saved_search {
+    background: #eee;
+}
+
+.edusharing_saved_search.card {
+    float: left;
+    width: 200px;
+    height: 300px;
+    margin: 10px;
+}
+
+.card .edusharing_saved_search_name {
+    display: block;
+    margin: 20px;
+    color: #000;
+    font-weight: 600;
+    overflow: hidden;
+}
+
+.card .edusharing_saved_search_licenseurl {
+    height: 20px;
+    display: block;
+    margin: 20px;
+}
+
+.edusharing_saved_search_table {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.edusharing_saved_search_table a {
+    display: table-row;
+    border-bottom: solid white 10px;
+}
+
+.edusharing_saved_search_table a *{
+    display: table-cell;
+    vertical-align: middle;
+}
+
+.list .edusharing_saved_search_preview {
+    height: 50px;
+}
+
+.list .edusharing_saved_search_name {
+    color: #000;
+    font-weight: 600;
+    overflow: hidden;
+}
+
+.list .edusharing_saved_search_licenseurl {
+    height: 20px;
+}

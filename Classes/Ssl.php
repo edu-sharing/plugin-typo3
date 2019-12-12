@@ -31,6 +31,19 @@ class Ssl
         return $signature;
     }
 
+    public function encrypt(string $data): string
+    {
+        $config = Config::getInstance();
+        $publicKey = $this->formatPemKey($config->get(Config::REPO_PUBLIC_KEY));
+        $publicKeyId = openssl_get_publickey($publicKey);
+        $ciphertext = '';
+        if (!openssl_public_encrypt($data, $ciphertext, $publicKeyId)) {
+            throw new \Exception('Failed to encrypt');
+        }
+        return $ciphertext;
+    }
+
+
     /*
      * Fix whitespace in an PEM-encoded SSL key.
      */

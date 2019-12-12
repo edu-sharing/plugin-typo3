@@ -8,7 +8,7 @@ class EdusharingObject
 {
 
     public $uid;
-    public $nodeId;
+    public $objecturl;
     public $contentId;
     public $title;
     public $mimetype;
@@ -32,9 +32,9 @@ class EdusharingObject
         }
     }
 
-    public function __construct($nodeId = '', $contentId = 0, $title = '', $mimetype = '', $version = '', $uid = '')
+    public function __construct($objecturl = '', $contentId = 0, $title = '', $mimetype = '', $version = '', $uid = '')
     {
-        $this->nodeId = $nodeId;
+        $this->objecturl = $objecturl;
         $this->contentId = $contentId;
         $this->title = $title;
         $this->mimetype = $mimetype;
@@ -52,7 +52,7 @@ class EdusharingObject
                 ['uid'],
                 'tx_edusharing_object',
                 [
-                    'nodeid' => $this->nodeId,
+                    'objecturl' => $this->objecturl,
                     'contentid' => $this->contentId,
                     'version' => $this->version
                 ]
@@ -97,7 +97,7 @@ class EdusharingObject
     {
         $eduSoapClient = new EduSoapClient($this->config->get(Config::REPO_URL) . '/services/usage2?wsdl');
         $params = array(
-            "eduRef" => $this->nodeId,
+            "eduRef" => $this->objecturl,
             "user" => null,
             "lmsId" => $this->config->get(Config::APP_ID),
             "courseId" => $this->contentId,
@@ -124,24 +124,19 @@ class EdusharingObject
 
     private function dbInsert()
     {
-        // If we try to add the same element again, we won't be able to tell it apart from the existing one.
-        if ($this->exists()) {
-            return;
-        }
         $connectionObject = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\TYPO3\CMS\Core\Database\ConnectionPool::class)
             ->getConnectionForTable('tx_edusharing_object');
         $connectionObject->insert(
             'tx_edusharing_object',
             [
-                'nodeid' => $this->nodeId,
+                'objecturl' => $this->objecturl,
                 'contentid' => $this->contentId,
                 'title' => $this->title,
                 'version' => $this->version,
                 'mimetype' => $this->mimetype
             ]
         );
-        // to fetch uid
-        $this->exists();
+        $this->uid = (int) $connectionObject->lastInsertId('tx_edusharing_object');
     }
 
     private function dbUpdateContentId()
@@ -163,7 +158,7 @@ class EdusharingObject
     {
         $eduSoapClient = new EduSoapClient($this->config->get(Config::REPO_URL) . '/services/usage2?wsdl');
         $params = array(
-            "eduRef" => $this->nodeId,
+            "eduRef" => $this->objecturl,
             "user" => $GLOBALS['BE_USER']->user['username'],
             "lmsId" => $this->config->get(Config::APP_ID),
             "courseId" => $this->contentId,
@@ -179,8 +174,8 @@ class EdusharingObject
         try {
             $eduSoapClient->setUsage($params);
         } catch (\SoapFault $e) {
-
             $this->logger->log(\TYPO3\CMS\Core\Log\LogLevel::ERROR, $e->faultString);
+            return false;
         }
 
         return true;

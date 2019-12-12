@@ -7,7 +7,5 @@ imports:
 editor:
   externalPlugins:
     edusharing: { resource: "EXT:edusharing/Resources/Public/RTE_Plugins/edusharing.js"}
-  allowedContent:
-    div: {
-            attributes: ['style']
-        }
+  config:
+    extraAllowedContent: 'img(*)[data-*]{*};var(*)[data-*]{*}'

@@ -35,34 +35,37 @@ class TCEmainHook
 
         if ($content) {
             $doc = new \DOMDocument();
-            $doc->loadHTML($content);
+            $doc->loadHTML(mb_convert_encoding($content, 'HTML-ENTITIES', 'UTF-8'));
             $xpath = new \DOMXpath($doc);
             $elements = $xpath->query('//*[@data-edusharing_uid]');
             foreach ($elements as $element) {
                 $eduSharingObject = new EdusharingObject(
-                    $element->getAttribute('data-edusharing_nodeid'),
+                    $element->getAttribute('data-edusharing_objecturl'),
                     $this->contentId,
                     $element->getAttribute('data-edusharing_title'),
                     $element->getAttribute('data-edusharing_mimetype'),
                     $element->getAttribute('data-edusharing_version')
                 );
+                // Add
                 if (empty($element->getAttribute('data-edusharing_uid'))) {
                     $eduSharingObject->add();
                     $element->setAttribute('data-edusharing_uid', $eduSharingObject->uid);
-                    // Our new object might share a DB entry with an existing one. We don't want to delete it.
+                }
+                // Edit
+                else if ($element->getAttribute('data-edusharing_edited') == 'true') {
+                    $element->removeAttribute('data-edusharing_edited');
+                    $eduSharingObject->add();
+                    $element->setAttribute('data-edusharing_uid', $eduSharingObject->uid);
+                }
+                // Keep untouched
+                else if ($eduSharingObject->exists()) {
                     unset($formerObjects[$eduSharingObject->uid]);
-                } else {
-                    if ($eduSharingObject->exists()) {
-                        unset($formerObjects[$eduSharingObject->uid]);
-                    } else {
-                        error_log("Encountered a reference to an Edusharing element which doesn't exist in our database!");
-                    }
                 }
             }
-
-            $content = $doc->saveHTML();
+            $content = str_replace(array('<html>', '<body>'), '', $doc->saveHTML()); // Remove tags added by ::loadHTML()
         }
 
+        // Delete
         foreach ($formerObjects as $object) {
             $object->delete();
         }

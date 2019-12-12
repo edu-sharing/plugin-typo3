@@ -1,5 +1,43 @@
 # Typo3 Edusharing Plugin
 
+## Features (German)
+
+### CKEditor-Plugin
+Durch Klick auf den edu-sharing Toolbar-Button öffnet sich ein Dialog mit der Suchansicht des enstpr. Repositoriums.
+Nach Auswahl eines Objektes werden die Details angezeigt und es können Optionen zur Anzeige des Objekts im CMS gesetzt werden:
+
+* Bild, Video
+    * Dimensionen
+        * Höhe [px]
+        * Breite [px]
+    * Ausrichtung (für Bilder und Videos)
+        * links umfließend
+        * rechts umfließend
+        * keine
+    * Version
+        * genau diese Version
+        * immer die aktuellste Version
+        
+* Andere Formate
+    * Version
+        * genau diese Version
+        * immer die aktuellste Version
+        
+* Gespeicherte Suche
+    * Anzahl anzuzeigender Elemente
+    * Sortierung
+    * Anzeige
+        * Liste
+        * Kachel
+    
+Durch Klick auf Einfügen wird das Objekt in den WYSIWYG-Editor eingefügt.
+Beim Speichern des Inhalts wird ein lokales Datenbankobjekt angelegt und ein Usage im Repositorium gesetzt.
+Beim Entfernen wird beides gelöscht.
+
+### Frontend-Filter
+Wird im Frontend ein edu-sharing-Objekt erkannt, wird dieses per AJAX über das Repositorium bzw. den Renderingservice geladen und mit Lizenzinformationen und Metadaten angezeigt.
+
+
 ## Installation
 
 1. Clone the repository as `edusharing` into the folder `public/typo3conf/ext` in your Typo3 installation.
@@ -34,7 +72,8 @@
     - Copy the URL of your Edusharing instance up to and including `/edu-sharing/`.
     - Go back to the extension settings of Typo3, paste the URL under *Repository URL*, and click *Setup repository*.
 
-
+5. TODO
+    > Das Stylesheet für gespeicherte Suchen muss für das Frontend eingebunden werden. Z. B. @import "[../]*typo3conf/ext/edusharing/Resources/Public/css/savedsearch.css";
 
 ## Troubleshooting
 
