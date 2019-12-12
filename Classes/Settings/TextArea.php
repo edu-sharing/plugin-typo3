@@ -2,7 +2,7 @@
 
 namespace Metaventis\Edusharing\Settings;
 
-use TYPO3\CMS\Install\ViewHelpers\Form\TypoScriptConstantsViewHelper;
+use TYPO3\CMS\Extensionmanager\ViewHelpers\Form\TypoScriptConstantsViewHelper;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 

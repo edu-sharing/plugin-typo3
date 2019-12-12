@@ -2,8 +2,10 @@
 
 namespace Metaventis\Edusharing\Settings;
 
+use TYPO3\CMS\Core\Utility\ArrayUtility;
 use \TYPO3\CMS\Core\Utility\GeneralUtility;
-use \TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
+use TYPO3\CMS\Extensionmanager\Utility\ConfigurationUtility;
+use TYPO3\CMS\Extbase\Object\ObjectManager;
 
 /*
  * Handle extension configuration.
@@ -29,7 +31,7 @@ class Config
     public const REPO_GUEST_USER = 'repo_guest_user';
     public const REPO_PUBLIC_KEY = 'repo_public_key';
 
-    private $extensionConfiguration;
+    private $configurationUtility;
 
     public static function getInstance(): Config
     {
@@ -41,7 +43,9 @@ class Config
 
     function __construct()
     {
-        $this->extensionConfiguration = GeneralUtility::makeInstance(ExtensionConfiguration::class);
+        $objectManager = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(ObjectManager::class);
+        $this->configurationUtility = $objectManager->get(ConfigurationUtility::class);
+        $this->configurationUtility->injectObjectManager($objectManager);
     }
 
     public function onInstallExtension($extname = null): void
@@ -71,17 +75,26 @@ class Config
 
     private function isEmpty(string $key): bool
     {
-        return empty($this->extensionConfiguration->get($this::EXTENSION_KEY, $key));
+        return empty($this->configurationUtility->getCurrentConfiguration($this::EXTENSION_KEY)[$key]['value']);
     }
 
     public function get(string $key): string
     {
-        return $this->extensionConfiguration->get($this::EXTENSION_KEY, $key);
+        $result = $this->configurationUtility->getCurrentConfiguration($this::EXTENSION_KEY)[$key]['value'];
+        return $result;
     }
 
     public function set(string $key, string $value): void
     {
-        $this->extensionConfiguration->set($this::EXTENSION_KEY, $key, $value);
+        $var = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf'][$this::EXTENSION_KEY]);
+        $var[$key] = $value;
+        $GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf'][$this::EXTENSION_KEY] = serialize($var);
+        $configuration = $this->configurationUtility->getCurrentConfiguration($this::EXTENSION_KEY);
+        // ArrayUtility::mergeRecursiveWithOverrule($configuration, $var);
+        // $configuration[$key]['value'] = $value;
+        $nestedConfiguration = $this->configurationUtility->convertValuedToNestedConfiguration($configuration);
+        // $nestedConfiguration[$key] = $value;
+        $this->configurationUtility->writeConfiguration($nestedConfiguration, $this::EXTENSION_KEY);
     }
 
     private function generateAppId(): string
