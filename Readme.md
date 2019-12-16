@@ -72,11 +72,16 @@ Wird im Frontend ein edu-sharing-Objekt erkannt, wird dieses per AJAX über das 
     - Copy the URL of your Edusharing instance up to and including `/edu-sharing/`.
     - Go back to the extension settings of Typo3, paste the URL under *Repository URL*, and click *Setup repository*.
 
-5. When embedding saved searches:
-    - Include the stylesheet from this plugin, e.g.
-        ```
-        @import "EXT:edusharing/Resources/Public/css/savedsearch.css";
-        ```
+5. Include the Typoscript page template (required when embedding saved searches):   
+    In the Typo3 backend
+    - navigate to *Template*
+    - select your page in the page tree
+    - select "Info / Modify" in the dropdown menu at the page top
+    - click *Edit the whole template record*
+    - go to the *Includes* tab
+    - move the entry "Edusharing CSS (edusharing)" from *Available Items* to *Selected Items*
+    - click *Save*
+
 
 ## Troubleshooting
 
