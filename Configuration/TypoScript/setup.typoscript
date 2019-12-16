@@ -1,0 +1,10 @@
+@import 'EXT:fluid_styled_content/Configuration/TypoScript/setup.typoscript'
+
+page = PAGE
+page {
+   typeNum = 0
+
+   includeCSS {
+      savedSearch = EXT:edusharing/Resources/Public/css/savedsearch.css
+   }
+}
