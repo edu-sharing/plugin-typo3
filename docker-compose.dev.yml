@@ -1,0 +1,17 @@
+services:
+  typo3:
+    build:
+      args:
+        dev: 1
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - html:/var/www/html
+      - ./src:/var/www/html/typo3conf/ext/edusharing
+
+volumes:
+  html:
+    driver_opts:
+      type: none
+      device: ./mnt/html
+      o: bind

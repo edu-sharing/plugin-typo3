@@ -3,6 +3,7 @@
 namespace Metaventis\Edusharing;
 
 use Metaventis\Edusharing\Settings\Config;
+use \TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class EduSoapClient extends \SoapClient
 {
@@ -16,10 +17,10 @@ class EduSoapClient extends \SoapClient
     private function setSoapHeaders()
     {
         try {
-            $config = Config::getInstance();
+            $config = GeneralUtility::makeInstance(Config::class);
             $timestamp = round(microtime(true) * 1000);
             $signData = $config->get(Config::APP_ID) . $timestamp;
-            $signature = Ssl::getInstance()->sign($signData);
+            $signature = GeneralUtility::makeInstance(Ssl::class)->sign($signData);
             $signature = base64_encode($signature);
             $headers = array();
             $headers[] = new \SOAPHeader('http://webservices.edu_sharing.org', 'appId', $config->get(Config::APP_ID));

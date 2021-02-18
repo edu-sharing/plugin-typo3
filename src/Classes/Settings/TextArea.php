@@ -16,7 +16,7 @@ class TextArea
         $this->tag = GeneralUtility::makeInstance('TYPO3Fluid\\Fluid\\Core\\ViewHelper\\TagBuilder');
     }
 
-    public function render(array $parameter, TypoScriptConstantsViewHelper $viewHelper)
+    public function render(array $parameter)
     {
         $this->tag->setTagName('textarea');
         $this->tag->forceClosingTag(TRUE);

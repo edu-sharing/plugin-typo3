@@ -4,31 +4,47 @@ namespace Metaventis\Edusharing\Settings;
 
 use Exception;
 use SimpleXMLElement;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ResponseFactoryInterface;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class Setup
 {
+    private $responseFactory;
+
+    public function __construct()
+    {
+        $this->responseFactory = GeneralUtility::makeInstance(ResponseFactoryInterface::class);
+    }
+
     public function runSetup(
-        \Psr\Http\Message\ServerRequestInterface $request,
-        \Psr\Http\Message\ResponseInterface $response
-    ) {
+        ServerRequestInterface $request
+    ): ResponseInterface {
         if (!$this->isAdmin()) {
-            $response->getBody()->write('Could not confirm admin privileges for the current user.');
-            $response = $response->withStatus(401);
+            $response = $this->responseFactory->createResponse()->withStatus(401);
+            $response->getBody()->write('Could not confirm admin privileges for the current user');
+            return $response;
+        }
+        $repoUrl = $request->getParsedBody()['repoUrl'];
+        if (!$repoUrl) {
+            $response = $this->responseFactory->createResponse()->withStatus(400);
+            $response->getBody()->write('Missing or empty Repository URL');
+            return $response;
         }
         try {
-            $repoUrl = $request->getQueryParams()['repoUrl'];
             $metadataUrl = $repoUrl . "/metadata?format=lms";
             $metadataXml = $this->download($metadataUrl);
             $repoProperties = $this->extractRepoProperties($metadataXml);
             $repoProperties['repo_url'] = $repoUrl;
             $this->writeRepoConfig($repoProperties);
+            return $this->responseFactory->createResponse()->withStatus(202);
         } catch (Exception $error) {
+            $response = $this->responseFactory->createResponse()->withStatus(500);
             $response->getBody()->write($error->getMessage());
-            $response = $response->withStatus(500);
+            return $response;
         }
-        return $response;
     }
 
     private function isAdmin()
@@ -72,7 +88,7 @@ class Setup
 
     private function writeRepoConfig(array $repoProperties): void
     {
-        $config = Config::getInstance();
+        $config = GeneralUtility::makeInstance(Config::class);
         $config->set(Config::REPO_ID, $repoProperties['repo_id']);
         $config->set(Config::REPO_URL, $repoProperties['repo_url']);
         $config->set(Config::REPO_PUBLIC_KEY, $repoProperties['repo_public_key']);

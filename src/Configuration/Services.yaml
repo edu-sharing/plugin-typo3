@@ -1,0 +1,15 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  Metaventis\Edusharing\:
+    resource: '../Classes/*'
+
+  Metaventis\Edusharing\Settings\Config:
+    tags:
+      - name: event.listener
+        identifier: 'afterExtensionInstall'
+        event: TYPO3\CMS\Core\Package\Event\AfterPackageActivationEvent
+        method: setup

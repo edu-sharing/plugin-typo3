@@ -4,14 +4,12 @@ namespace Metaventis\Edusharing\Settings;
 
 use Metaventis\Edusharing\Settings\Config;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Install\ViewHelpers\Form\TypoScriptConstantsViewHelper;
 
 class SetupForm
 {
-    public function render(array $parameter, TypoScriptConstantsViewHelper $viewHelper)
+    public function render(array $parameter)
     {
-        $requestUrl = GeneralUtility::getIndpEnv('TYPO3_SITE_URL') . 'typo3/?route=%2Fedusharing%2Fsetup';
-        $repoUrl = Config::getInstance()->get(Config::REPO_URL);
+        $repoUrl = GeneralUtility::makeInstance(Config::class)->get(Config::REPO_URL);
         if ($repoUrl) {
             $parameter['fieldValue'] = $repoUrl;
         }
@@ -28,20 +26,35 @@ class SetupForm
                     )) {
                         return;
                     }
-                    const url = \"$requestUrl\" + \"&repoUrl=\" + encodeURI(repoUrl);
-                    $.get(url)
-                        .then(() => {
-                            require(['TYPO3/CMS/Backend/Notification'], (Notification) => Notification.success('Setup successful'))
+                    $.ajax({
+                        url: TYPO3.settings.ajaxUrls['edusharing_setup'],
+                        method: 'POST',
+                        data: {
+                            repoUrl,
+                        },
+                        success: function(response) {
+                            require(['TYPO3/CMS/Backend/Notification'], (Notification) =>
+                                Notification.success('Setup successful')
+                            );
+                            // Changes to the configuration by the 'edusharing_setup' endpoint, are
+                            // not reflected in the configuration form shown to the user. If the
+                            // user would save the configuration afterwards, the changes would be
+                            // overwritten by old values. Therefore, we force a page reload after
+                            // successful setup.
                             location.reload();
-                        })
-                        .catch((e) => {
-                            require(['TYPO3/CMS/Backend/Notification'], (Notification) => {
-                                Notification.error('Setup failed', e.responseText)
-                            });
-                        });
+                        },
+                        error: (response, textStatus, error) => {
+                            console.log(response);
+                            require(['TYPO3/CMS/Backend/Notification'], (Notification) => 
+                                Notification.error(
+                                    'Setup failed',
+                                    response.responseText
+                                )
+                            );
+                        },
+                    });
                 }
             </script>
-
             ";
     }
 }

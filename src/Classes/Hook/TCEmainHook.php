@@ -24,7 +24,7 @@ class TCEmainHook
 
         foreach ($rows as $row) {
             $formerObjects[$row['uid']] = new EdusharingObject(
-                $row['nodeid'],
+                $row['objecturl'],
                 $row['contentid'],
                 $row['title'],
                 $row['mimetype'],

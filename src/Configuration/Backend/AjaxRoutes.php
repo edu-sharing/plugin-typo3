@@ -1,5 +1,9 @@
 <?php
 return [
+    'edusharing_setup' => [
+        'path' => '/edusharing/setup',
+        'target' => \Metaventis\Edusharing\Settings\Setup::class . '::runSetup'
+    ],
     'getAppconfig' => [
         'path' => '/edusharing/appconfig',
         'target' => \Metaventis\Edusharing\Controller\Edu::class . '::getAppconfig'

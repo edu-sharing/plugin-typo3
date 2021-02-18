@@ -6,20 +6,10 @@ namespace Metaventis\Edusharing;
  * This is a map of edusharing objects, that are being instantiated and don't have their final content id yet.
  */
 
-class EdusharingObjectsInitMap
+class EdusharingObjectsInitMap implements \TYPO3\CMS\Core\SingletonInterface
 {
-    private static $instance = null;
-
     // Temporary content ID => Array<EdusharingObject>
     private $map = array();
-
-    public static function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new EdusharingObjectsInitMap();
-        }
-        return self::$instance;
-    }
 
     public function push(string $temporaryContentId, EdusharingObject $edusharingObject): void
     {
@@ -32,7 +22,4 @@ class EdusharingObjectsInitMap
         unset($this->map[$temporaryContentId]);
         return $edusharingObjects;
     }
-
-    private function __construct()
-    { }
 }

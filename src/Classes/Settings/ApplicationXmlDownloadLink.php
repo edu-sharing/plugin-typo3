@@ -3,13 +3,21 @@
 namespace Metaventis\Edusharing\Settings;
 
 use \TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Install\ViewHelpers\Form\TypoScriptConstantsViewHelper;
+use Metaventis\Edusharing\Settings\Config;
 
 class ApplicationXmlDownloadLink
 {
-    public function render(array $parameter, TypoScriptConstantsViewHelper $viewHelper)
+    private $config;
+
+    public function __construct()
     {
-        $parameter['fieldValue'] = GeneralUtility::getIndpEnv('TYPO3_SITE_URL') . '?eID=edusharing_application_xml';
+        $this->config = GeneralUtility::makeInstance(Config::class);
+    }
+
+    public function render(array $parameter)
+    {
+        $appUrl = $this->config->get(Config::APP_URL);
+        $parameter['fieldValue'] = $appUrl . '?eID=edusharing_application_xml';
         return "<input name=\"$parameter[fieldName]\" value=\"$parameter[fieldValue]\" id=\"em-$parameter[fieldName]\" readonly/  size=\"45\">
             <button onclick=\"copyXmlLink(event)\">Copy to clipboard</button>
             <script>
@@ -23,3 +31,4 @@ class ApplicationXmlDownloadLink
             </script>";
     }
 }
+

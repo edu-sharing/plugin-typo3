@@ -8,16 +8,13 @@ use \TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 /*
  * Handle extension configuration.
  * 
- * Should be used as singleton, but allows instantiation with `new` for compatability.
+ * Should be used as singleton, but allows instantiation with `new` for compatibility.
  * 
- * Usage example: `Config::getInstance()->get(Config::APP_PRIVATE_KEY)`
+ * Usage example: `GeneralUtility::makeInstance(Config::class)->get(Config::APP_PRIVATE_KEY)`
  */
 
-class Config
+class Config implements \TYPO3\CMS\Core\SingletonInterface
 {
-
-    private static $instance = null;
-
     private const EXTENSION_KEY = 'edusharing';
 
     public const APP_ID = 'app_id';
@@ -31,30 +28,16 @@ class Config
 
     private $extensionConfiguration;
 
-    public static function getInstance(): Config
-    {
-        if (self::$instance == null) {
-            self::$instance = new Config();
-        }
-        return self::$instance;
-    }
-
     function __construct()
     {
         $this->extensionConfiguration = GeneralUtility::makeInstance(ExtensionConfiguration::class);
     }
 
-    public function onInstallExtension($extname = null): void
-    {
-        if ($extname == $this::EXTENSION_KEY) {
-            $this->setup();
-        }
-    }
 
     /*
      * Initialize empty values.
      */
-    private function setup(): void
+    public function setup(): void
     {
         if ($this->isEmpty($this::APP_ID)) {
             $this->set($this::APP_ID, $this->generateAppId());

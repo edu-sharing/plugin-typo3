@@ -7,17 +7,22 @@ use Metaventis\Edusharing\Settings\Config;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-class Library
+class Library implements \TYPO3\CMS\Core\SingletonInterface
 {
+    private $config;
+    private $ssl;
+
     public function __construct()
-    { }
+    {
+        $this->config = GeneralUtility::makeInstance(Config::class);
+        $this->ssl = GeneralUtility::makeInstance(Ssl::class);
+    }
 
     public function getContenturl($eduObj, $displayMode = 'inline')
     {
-        $config = Config::getInstance();
-        $contenturl = $config->get(Config::REPO_URL) . '/renderingproxy';
-        $contenturl .= '?app_id=' . urlencode($config->get(Config::APP_ID));
-        $contenturl .= '&rep_id=' . $config->get(Config::REPO_ID);
+        $contenturl = $this->config->get(Config::REPO_URL) . '/renderingproxy';
+        $contenturl .= '?app_id=' . urlencode($this->config->get(Config::APP_ID));
+        $contenturl .= '&rep_id=' . $this->config->get(Config::REPO_ID);
         $contenturl .= '&obj_id=' . $eduObj['nodeid'];
         $contenturl .= '&resource_id=' . urlencode($eduObj['uid']);
         $contenturl .= '&course_id=' . urlencode($eduObj['contentid']);
@@ -42,17 +47,17 @@ class Library
         // Also don't make it a side-effect of this function.
         $this->getTicket($user);
 
-        $encryptedUsername =  Ssl::getInstance()->encrypt($user['username']);
-       
+        $encryptedUsername = $this->ssl->encrypt($user['username']);
+
         $paramString = '';
         $ts = round(microtime(true) * 1000);
         $paramString .= '&ts=' . $ts;
         $paramString .= '&u=' . urlencode(base64_encode($encryptedUsername));
-        $config = Config::getInstance();
-        $signature = Ssl::getInstance()->sign($config->get(Config::APP_ID) . $ts . $eduObj['nodeid']);
+        $signature = $this->ssl->sign($this->config->get(Config::APP_ID) . $ts . $eduObj['nodeid']);
         $signature = base64_encode($signature);
         $paramString .= '&sig=' . urlencode($signature);
-        $paramString .= '&signed=' . urlencode($config->get(Config::APP_ID) . $ts . $eduObj['nodeid']);
+        $paramString .= '&signed=' . urlencode($this->config->get(Config::APP_ID) . $ts . $eduObj['nodeid']);
+        $paramString .= '&ticket=' . urlencode(base64_encode($this->ssl->encrypt($this->getTicket())));
 
         return $paramString;
     }
@@ -63,8 +68,8 @@ class Library
             $user = $this->getUser();
         }
         $userData = $this->readUserData($user);
-        $config = Config::getInstance();
-        $eduSoapClient = new EduSoapClient($config->get(Config::REPO_URL) . '/services/authbyapp?wsdl');
+        $repoUrl = $this->config->get(Config::REPO_URL);
+        $eduSoapClient = new EduSoapClient($repoUrl . '/services/authbyapp?wsdl');
 
         if (isset($_SESSION["repository_ticket"])) {
             // ticket available.. is it valid?
@@ -76,7 +81,7 @@ class Library
         }
 
         $paramsTrusted = array(
-            "applicationId" => $config->get(Config::APP_ID),
+            "applicationId" => $this->config->get(Config::APP_ID),
             "ticket" => session_id(),
             "ssoData" => array_map(
                 function ($key, $value) {
@@ -96,8 +101,7 @@ class Library
 
     public function getSavedSearch($nodeId, $maxItems, $skipCount, $sortProperty, $template)
     {
-        $config = Config::getInstance();
-        $url = $config->get(Config::REPO_URL) . 'rest/search/v1/queriesV2/load/';
+        $url = $this->config->get(Config::REPO_URL) . 'rest/search/v1/queriesV2/load/';
         $url .= $nodeId;
         $url .= '?';
         $url .= 'maxItems=' . $maxItems;
@@ -121,7 +125,7 @@ class Library
         curl_setopt($curl_handle, CURLOPT_SSL_VERIFYHOST, false);
         $result = curl_exec($curl_handle);
         if (curl_errno($curl_handle)) {
-            error_log("Error when fetching $url: " . curl_error($curl_handle));
+            throw new Exception("Error when fetching $url: " . curl_error($curl_handle));
         }
         curl_close($curl_handle);
         return json_encode($this->renderSearchResult($result, $template));
@@ -129,16 +133,15 @@ class Library
 
     private function renderSearchResult($result, $template)
     {
-        $config = Config::getInstance();
         $result = json_decode($result, true);
-        if (empty($result)) {
+        if (empty($result) || empty($result['nodes'])) {
             return '<span class="edusharing_saved_search_empty">Kein Suchergebnis.</span>';
         }
         $return = '';
         if ($template == 'card') {
             foreach ($result['nodes'] as $node) {
                 $return .= '<a class="edusharing_saved_search ' . $template . '" target="_blank" ' .
-                    'href="' . $config->get(Config::REPO_URL) . '/components/render/' . $node['ref']['id'] . '?closeOnBack=true">' .
+                    'href="' . $this->config->get(Config::REPO_URL) . '/components/render/' . $node['ref']['id'] . '?closeOnBack=true">' .
                     '<img class="edusharing_saved_search_preview" src="' . $node['preview']['url'] . '&crop=true&width=200&height=150">' .
                     '<span class="edusharing_saved_search_name">' . $node['name'] . '</span>' .
                     '<img src="' . $node['licenseURL'] . '" class="edusharing_saved_search_licenseurl">' .
@@ -148,7 +151,7 @@ class Library
             $return = '<div class="edusharing_saved_search_table">';
             foreach ($result['nodes'] as $node) {
                 $return .= '<a class="edusharing_saved_search ' . $template . '" target="_blank" ' .
-                    'href="' . $config->get(Config::REPO_URL) . '/components/render/' . $node['ref']['id'] . '?closeOnBack=true">' .
+                    'href="' . $this->config->get(Config::REPO_URL) . '/components/render/' . $node['ref']['id'] . '?closeOnBack=true">' .
                     '<img class="edusharing_saved_search_preview" src="' . $node['preview']['url'] . '&crop=true&width=200&height=150">' .
                     '<span class="edusharing_saved_search_name">' . $node['name'] . '</span>' .
                     '<div><img src="' . $node['licenseURL'] . '" class="edusharing_saved_search_licenseurl"></div>' .
@@ -159,7 +162,8 @@ class Library
         return $return;
     }
 
-    private function getUser(): array {
+    private function getUser(): array
+    {
         return $this->getBackendUser() ?? $this->getFrontendUser() ?? $this->getGuestUser();
     }
 
@@ -204,8 +208,7 @@ class Library
 
     private function getGuestUser(): array
     {
-        $config = Config::getInstance();
-        $username = $config->get(Config::REPO_GUEST_USER);
+        $username = $this->config->get(Config::REPO_GUEST_USER);
         return [
             'username' => $username
         ];

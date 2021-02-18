@@ -2,6 +2,9 @@
 
 namespace Metaventis\Edusharing;
 
+use TYPO3\CMS\Core\Log\LogManager;
+use TYPO3\CMS\Core\Log\LogLevel;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use Metaventis\Edusharing\Settings\Config;
 
 class EdusharingObject
@@ -24,7 +27,7 @@ class EdusharingObject
      */
     public static function updateContentId(string $temporaryContentId, int $finalContentId)
     {
-        $edusharingObjects = EdusharingObjectsInitMap::getInstance()->pop($temporaryContentId);
+        $edusharingObjects = GeneralUtility::makeInstance(EdusharingObjectsInitMap::class)->pop($temporaryContentId);
         foreach ($edusharingObjects as $edusharingObject) {
             $edusharingObject->contentId = $finalContentId;
             $edusharingObject->dbUpdateContentId();
@@ -40,13 +43,13 @@ class EdusharingObject
         $this->mimetype = $mimetype;
         $this->version = $version;
         $this->uid = $uid;
-        $this->logger = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\CMS\Core\Log\LogManager')->getLogger(__CLASS__);
-        $this->config = Config::getInstance();
+        $this->logger = GeneralUtility::makeInstance(LogManager::class)->getLogger(__CLASS__);
+        $this->config = GeneralUtility::makeInstance(Config::class);
     }
 
     public function exists()
     {
-        $row = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\TYPO3\CMS\Core\Database\ConnectionPool::class)
+        $row = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Database\ConnectionPool::class)
             ->getConnectionForTable('tx_edusharing_object')
             ->select(
                 ['uid'],
@@ -78,7 +81,7 @@ class EdusharingObject
             $temporaryContentId = $this->contentId;
             $this->contentId = 0;
             $this->dbInsert();
-            EdusharingObjectsInitMap::getInstance()->push($temporaryContentId, $this);
+            GeneralUtility::makeInstance(EdusharingObjectsInitMap::class)->push($temporaryContentId, $this);
         }
     }
 
@@ -106,7 +109,10 @@ class EdusharingObject
         try {
             $eduSoapClient->deleteUsage($params);
         } catch (\SoapFault $e) {
-            $this->logger->log(\TYPO3\CMS\Core\Log\LogLevel::ERROR, $e->faultString);
+            $this->logger->log(LogLevel::ERROR, 'Failed to delete usage: ' . $e->faultstring);
+            if ($GLOBALS['TYPO3_CONF_VARS']['SYS']['displayErrors'] === 1) {
+                throw $e;
+            }
         }
     }
 
@@ -174,8 +180,12 @@ class EdusharingObject
         try {
             $eduSoapClient->setUsage($params);
         } catch (\SoapFault $e) {
-            $this->logger->log(\TYPO3\CMS\Core\Log\LogLevel::ERROR, $e->faultString);
-            return false;
+            $this->logger->log(\TYPO3\CMS\Core\Log\LogLevel::ERROR, $e->faultstring);
+            if ($GLOBALS['TYPO3_CONF_VARS']['SYS']['displayErrors'] === 1) {
+                throw $e;
+            } else {
+                return false;
+            }
         }
 
         return true;

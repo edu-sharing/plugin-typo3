@@ -2,16 +2,25 @@
 
 namespace Metaventis\Edusharing\Controller;
 
+use \Psr\Http\Message\ServerRequestInterface;
+use \Psr\Http\Message\ResponseFactoryInterface;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use Metaventis\Edusharing\Settings\Config;
 
 class Edu extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
 {
+    private $responseFactory;
+
+    public function __construct(ResponseFactoryInterface $responseFactory)
+    {
+        $this->responseFactory = $responseFactory;
+    }
 
     public function getAppconfig(
-        \Psr\Http\Message\ServerRequestInterface $request,
-        \Psr\Http\Message\ResponseInterface $response
+        ServerRequestInterface $request
     ) {
-        $config = Config::getInstance();
+        $config = GeneralUtility::makeInstance(Config::class);
+        $response = $this->responseFactory->createResponse();
         $response->getBody()->write(json_encode(array(
             'repo_url' => $config->get(Config::REPO_URL),
             'app_url' => $config->get(Config::APP_URL)
@@ -20,20 +29,20 @@ class Edu extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
     }
 
     public function getTicket(
-        \Psr\Http\Message\ServerRequestInterface $request,
-        \Psr\Http\Message\ResponseInterface $response
+        ServerRequestInterface $request
     ) {
         $library = new \Metaventis\Edusharing\Library();
-        $response->getBody()->write(json_encode($library->getTicket()));
+        $response = $this->responseFactory->createResponse();
+        $response->getBody()->write($library->getTicket());
         return $response;
     }
 
     public function getSavedSearch(
-        \Psr\Http\Message\ServerRequestInterface $request,
-        \Psr\Http\Message\ResponseInterface $response
+        ServerRequestInterface $request
     ) {
         $data = $request->getParsedBody();
         $library = new \Metaventis\Edusharing\Library();
+        $response = $this->responseFactory->createResponse();
         $response->getBody()
             ->write(json_encode(
                 $library->getSavedSearch(
@@ -46,5 +55,4 @@ class Edu extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
             ));
         return $response;
     }
-
 }

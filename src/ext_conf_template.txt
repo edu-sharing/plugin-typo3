@@ -1,4 +1,4 @@
-# cat=Setup; type=user[Metaventis\Edusharing\Settings\ApplicationXmlDownloadLink->render]; label=Application XML: Enter this URL in Edu-Sharing under "Admin-Tools" / "Applications" and hit "Connect".
+# cat=Setup; type=user[Metaventis\Edusharing\Settings\ApplicationXmlDownloadLink->render]; label=Application XML: Enter this URL in Edu-Sharing under "Admin-Tools" / "Remote-systems" / "Add new application" and hit "Connect".
 application_xml_url =
 
 # cat=Setup; type=user[Metaventis\Edusharing\Settings\SetupForm->render]; label=Repository URL: Enter the URL of your Edu-Sharing instance and hit "Setup repository" to fill in the required variables in the "Repo" tab.
