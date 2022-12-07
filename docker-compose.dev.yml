@@ -7,11 +7,17 @@ services:
       - host.docker.internal:host-gateway
     volumes:
       - html:/var/www/html
+      - typo3temp:/var/www/html/typo3temp
       - ./src:/var/www/html/typo3conf/ext/edusharing
 
 volumes:
   html:
     driver_opts:
       type: none
-      device: ./mnt/html
+      device: ${PWD}/mnt/html
+      o: bind
+  typo3temp:
+    driver_opts:
+      type: none
+      device: ${PWD}/mnt/typo3temp
       o: bind

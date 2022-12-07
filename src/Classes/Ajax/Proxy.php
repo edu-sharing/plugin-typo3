@@ -9,16 +9,20 @@ use \Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use Metaventis\Edusharing\Library;
+use Metaventis\Edusharing\EduRestClient;
+use Metaventis\Edusharing\EdusharingObject;
 
 class Proxy
 {
     private $responseFactory;
     private $library;
+    private $eduRestClient;
 
     public function __construct()
     {
         $this->responseFactory = GeneralUtility::makeInstance(ResponseFactoryInterface::class);
         $this->library = GeneralUtility::makeInstance(Library::class);
+        $this->eduRestClient = GeneralUtility::makeInstance(EduRestClient::class);
     }
 
     public function __invoke(
@@ -30,15 +34,19 @@ class Proxy
             return $this->createResponse(400, 'Missing parameter "data-edusharing_uid"');
         }
         $eduObject = $this->getEduObject($uid);
-        if (empty($eduObject['objecturl'])) {
+        if (empty($eduObject->nodeId)) {
             return $this->createResponse(400, 'Fehlerhaftes Objekt');
+        } else if (empty($eduObject->usageId)) {
+            // If we wanted to do the migration here, we would have to get a ticket for the owner of
+            // the page.
+    
+            // if (empty($eduObject->usageId)) {
+            //     $eduObject->lookUpAndSaveUsageId();
+            // }
+            return $this->createResponse(400, 'Missing usageId. The page needs to be saved once by its owner to complete migration.');
         }
 
-        $eduObject['nodeid'] = substr(
-            $eduObject['objecturl'],
-            strrpos($eduObject['objecturl'], '/') + 1
-        );
-
+        // TODO: check if this is still needed
         if ($queryParams['edusharing_external']) {
             $url = $this->library->getContenturl($eduObject, 'window');
             return $this->createRedirectResponse($url);
@@ -46,7 +54,7 @@ class Proxy
 
         if ($queryParams['data-edusharing_mediatype'] == 'saved_search') {
             $html = $this->library->getSavedSearch(
-                $eduObject['nodeid'],
+                $eduObject->nodeId,
                 $queryParams['data-edusharing_savedsearch_limit'],
                 0,
                 $queryParams['data-edusharing_savedsearch_sortproperty'],
@@ -54,16 +62,15 @@ class Proxy
             );
             $html = json_decode($html) . '<div style="clear:both"></div>';
         } else {
-            $url = $this->library->getContenturl($eduObject, 'inline');
-            $html = $this->getRenderHtml($url);
+            $html = $this->getRenderHtml($eduObject);
         }
         $html = $this->insertProxyUrl($html, $eduObject);
         return $this->createResponse(200, $html);
     }
 
-    private function getEduObject(int $uid): array
+    private function getEduObject(int $uid): EdusharingObject
     {
-        return GeneralUtility::makeInstance(ConnectionPool::class)
+        $row = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getConnectionForTable('tx_edusharing_object')
             ->select(
                 ['*'],
@@ -73,33 +80,30 @@ class Proxy
                 ]
             )
             ->fetch();
+        $eduSharingObject = EdusharingObject::fromDbRow($row);
+        return $eduSharingObject;
     }
 
-    private function getRenderHtml(string $url)
+    private function getRenderHtml(EdusharingObject $eduObject)
     {
-        $curl_handle = curl_init($url);
-        curl_setopt($curl_handle, CURLOPT_FAILONERROR, 1);
-        curl_setopt($curl_handle, CURLOPT_FOLLOWLOCATION, 1);
-        curl_setopt($curl_handle, CURLOPT_HEADER, 0);
-        curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($curl_handle, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT']);
-        curl_setopt($curl_handle, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($curl_handle, CURLOPT_SSL_VERIFYHOST, false);
-        $inline = curl_exec($curl_handle);
-        if (curl_errno($curl_handle)) {
-            throw new Exception("Error when fetching $url: " . curl_error($curl_handle));
-        }
-        curl_close($curl_handle);
-        return $inline;
+        // error_log('getRenderHtml ' . serialize($eduObject));
+        $node = $this->eduRestClient->getNodeByUsage(
+            $eduObject->nodeId,
+            $eduObject->version,
+            $eduObject->contentId ,
+            $eduObject->uid,
+            $eduObject->usageId
+        );
+        return $node['detailsSnippet'];
     }
 
-    private function insertProxyUrl(string $html, $eduObj): string
+    private function insertProxyUrl(string $html, EdusharingObject $eduObj): string
     {
         $html = str_replace(array("\r\n", "\r", "\n"), '', $html);
         $html = str_replace(
             "{{{LMS_INLINE_HELPER_SCRIPT}}}",
             "index.php?eID=edusharing_proxy&edusharing_external=true&data-edusharing_uid="
-                . $eduObj['uid'],
+                . $eduObj->uid,
             $html
         );
         return $html;

@@ -81,7 +81,7 @@ class Setup
     {
         $result = $xml->xpath($xpath);
         if (sizeof($result) != 1) {
-            throw new Exception('Expected exaclty one result for ' . $xpath . ', got ' . sizeof($result));
+            throw new Exception('Expected exactly one result for ' . $xpath . ', got ' . sizeof($result));
         }
         return $result[0];
     }

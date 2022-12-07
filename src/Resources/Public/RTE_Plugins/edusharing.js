@@ -1,48 +1,42 @@
 'use strict';
 
-var appconfig;
-// FIXME: When the user keeps the editor open for some time, the ticket will silently expire and the
-// user will be thrown into a guest session once they try to add content.
-var ticket;
+// Promises as cache for config and ticket. Don't access these variables directly, but use the
+// functions `getAppConfig` and `getTicket`.
+let _appConfigPromise = null;
+let _ticketPromise = null;
 var node = {};
+var repositoryTab;
 
 CKEDITOR.plugins.add('edusharing', {
     lang: ['de'],
     icons: 'edusharing',
     init: function (editor) {
-        $.ajax({
-            url: TYPO3.settings.ajaxUrls['getAppconfig'],
-            method: 'GET',
-            dataType: 'json',
-            success: function (response) {
-                appconfig = response;
-            },
-            error: function (xhr, errorType, error) {
-                console.error('Failed to get app config: ' + error);
-            },
-        });
-
-        $.ajax({
-            url: TYPO3.settings.ajaxUrls['getTicket'],
-            method: 'GET',
-            cache: false,
-            success: function (response) {
-                ticket = response;
-            },
-            error: function (xhr, errorType, error) {
-                console.error('Failed to get ticket: ' + error);
-            },
+        editor.on('instanceReady', function (event) {
+            $(editor.document.$.body)
+                .find('[data-edusharing_node-id]')
+                .each(function () {
+                    setPreviewUrl(this);
+                });
         });
 
         editor.ui.addButton('edusharing', {
             label: editor.lang.edusharing.buttonlabel,
             tooolbar: 'basicstyles',
             command: 'openModal',
+            // We could consider migrating from our `<img>` elements with custom `data-edu-sharing`
+            // attributes to custom `<edu-sharing-object>` elements with a `node-id` and style
+            // attributes, but we would need to
+            // - adapt our handling of styles (at least for the editor view)
+            // - migrate existing `img` elements
+            // - fetch additional data from the database
+            //
+            // allowedContent: 'edu-sharing-object[node-id]', requiredContent:
+            // 'edu-sharing-object[node-id]',
         });
 
         // Prevent opening of image plugin dialog and insert edu dialog instead
         editor.on('doubleclick', function (evt) {
-            if (evt.data.element.getAttribute('data-edusharing_objecturl')) {
+            if (evt.data.element.getAttribute('data-edusharing_node-id')) {
                 delete evt.data.dialog;
                 editor.execCommand('openModal');
             }
@@ -55,39 +49,42 @@ CKEDITOR.plugins.add('edusharing', {
                     var selection =
                         editor.getSelection().getSelectedElement() ||
                         editor.getSelection().getStartElement();
-                    if (selection && selection.getAttribute('data-edusharing_objecturl')) {
+                    if (selection && selection.getAttribute('data-edusharing_node-id')) {
                         button_apply_text = editor.lang.edusharing.apply_changes;
                         setNode(selection);
                         var html = getEditDialogHtml(editor);
-                        if (selection.getAttribute('data-edusharing_mediatype') == 'saved_search')
+                        if (
+                            selection.getAttribute('data-edusharing_mediatype') === 'saved_search'
+                        ) {
                             setSavedSearchPreview(editor);
+                        }
                         bindAction(editor);
                     } else {
                         var html = getInsertDialogHtml(editor);
+                        openRepositoryTab();
                         bindAction(editor);
                     }
 
                     var configuration = {
                         title: 'edu-sharing',
-                        content: $('<div>').html(html),
+                        content: $('<div class="dialog-container">').html(html),
                         size: Modal.sizes.large,
                         buttons: [
                             {
                                 text: button_apply_text,
                                 active: true,
-                                trigger: function () {
-                                    if (!node) {
+                                trigger: async function () {
+                                    if (!node?.id) {
                                         require(['TYPO3/CMS/Backend/Notification'], (
                                             Notification,
                                         ) => {
                                             Notification.notice(
-                                                'No Content Selected',
-                                                'Please click "Apply" on an element in order to insert content.',
+                                                editor.lang.edusharing.choose_element_notice,
                                             );
                                         });
                                         return;
                                     }
-                                    insertEduObject(editor);
+                                    await insertEduObject(editor);
                                     node = {};
                                     Modal.dismiss();
                                 },
@@ -103,10 +100,8 @@ CKEDITOR.plugins.add('edusharing', {
                         callback: function (Modal) {
                             parent.window.addEventListener(
                                 'message',
-                                function (event) {
+                                function handleMessage(event) {
                                     if (event.data.event == 'APPLY_NODE') {
-                                        console.log(event);
-                                        node.object_url = event.data.data.objectUrl;
                                         node.id = event.data.data.ref.id;
                                         node.title = event.data.data.name;
                                         if (event.data.data.title && event.data.data.title.length) {
@@ -125,6 +120,11 @@ CKEDITOR.plugins.add('edusharing', {
                                         }
                                         node.mimetype = event.data.data.mimetype;
                                         node.mediatype = event.data.data.mediatype;
+                                        parent.window.removeEventListener(
+                                            'message',
+                                            handleMessage,
+                                            false,
+                                        );
                                         applyValues(editor);
                                     }
                                 },
@@ -139,6 +139,46 @@ CKEDITOR.plugins.add('edusharing', {
     },
 });
 
+async function getAppConfig() {
+    if (!_appConfigPromise) {
+        _appConfigPromise = new Promise((resolve, reject) => {
+            $.ajax({
+                url: TYPO3.settings.ajaxUrls['getAppconfig'],
+                method: 'GET',
+                dataType: 'json',
+                success: resolve,
+                error: function (xhr, errorType, error) {
+                    console.error('Failed to get app config: ' + error);
+                    reject(error);
+                },
+            });
+        });
+    }
+    return _appConfigPromise;
+}
+
+async function getTicket() {
+    if (!_ticketPromise) {
+        _ticketPromise = new Promise((resolve, reject) => {
+            $.ajax({
+                url: TYPO3.settings.ajaxUrls['getTicket'],
+                method: 'GET',
+                cache: false,
+                success: resolve,
+                error: function (xhr, errorType, error) {
+                    console.error('Failed to get ticket: ' + error);
+                    reject(error);
+                },
+            });
+        });
+    }
+    return _ticketPromise;
+}
+
+async function setPreviewUrl(element) {
+    element.src = await getPreviewUrl(element.getAttribute('data-edusharing_node-id'));
+}
+
 function bindAction(editor) {
     $(parent.document).on('change', '#edusharing_savedsearch_limit', function () {
         node.savedsearch_limit = this.value;
@@ -152,14 +192,8 @@ function bindAction(editor) {
         node.savedsearch_template = this.value;
         setSavedSearchPreview(editor);
     });
-    $(parent.document).on('click', '#edusharing_savedsearch_repick_a', function () {
-        parent.document.getElementById('edusharing_repository_frame').src =
-            `${appconfig.repo_url}components/search` +
-            `?ticket=${encodeURIComponent(ticket)}` +
-            '&reurl=IFRAME' +
-            `&savedQuery=${encodeURIComponent(node.id)}`;
-        parent.document.getElementById('edusharing_repository_frame').style.display = 'block';
-        parent.document.getElementById('edusharing_fieldset_savedsearch').style.display = 'none';
+    $(parent.document).on('click', '#edusharing_savedsearch_repick_a', async function () {
+        openRepositoryTab(`&savedQuery=${encodeURIComponent(node.id)}`);
     });
 
     $(parent.document).on('keyup', '#edusharing_height', function () {
@@ -175,15 +209,17 @@ function bindAction(editor) {
     });
 }
 
+/**
+ * Prepares the edu-sharing dialog to edit the selected element instead of inserting a new one.
+ */
 function setNode(selection) {
     node.uid = selection.getAttribute('data-edusharing_uid');
-    node.object_url = selection.getAttribute('data-edusharing_objecturl');
-    node.id = node.object_url.split('/').slice(-1).pop();
+    node.id = selection.getAttribute('data-edusharing_node-id');
     node.title = selection.getAttribute('data-edusharing_title');
     node.height = selection.getComputedStyle('height').replace('px', '');
     node.width = selection.getComputedStyle('width').replace('px', '');
     node.ratio = node.width / node.height;
-    node.src = getPreviewUrl();
+    node.src = selection.getAttribute('src');
     node.version = selection.getAttribute('data-edusharing_version');
     node.mimetype = selection.getAttribute('data-edusharing_mimetype');
     node.mediatype = selection.getAttribute('data-edusharing_mediatype');
@@ -195,14 +231,21 @@ function setNode(selection) {
     node.savedsearch_template = selection.getAttribute('data-edusharing_savedsearch_template');
 }
 
-function applyValues(editor) {
-    parent.document.getElementById('edusharing_repository_frame').style.display = 'none';
+async function applyValues(editor) {
+    repositoryTab?.close();
+    repositoryTab = null;
+    const chooseElementNotice = parent.document.getElementById(
+        'edusharing_choose_element_notice_container',
+    );
+    if (chooseElementNotice) {
+        chooseElementNotice.style.display = 'none';
+    }
     parent.document.getElementById('edusharing_object_dialog').style.display = 'block';
     parent.document.getElementById('edusharing_fieldset_savedsearch').style.display = 'none';
     parent.document.getElementById('edusharing_title_display').textContent = node.title;
 
     if (node.mediatype.indexOf('video') > -1 || node.mediatype.indexOf('image') > -1) {
-        parent.document.getElementById('edusharing_preview_image').src = getPreviewUrl();
+        parent.document.getElementById('edusharing_preview_image').src = await getPreviewUrl();
         parent.document.getElementById('edusharing_height').value = node.height;
         parent.document.getElementById('edusharing_width').value = node.width;
         node.ratio = node.width / node.height;
@@ -216,8 +259,6 @@ function applyValues(editor) {
     if (node.mediatype == 'saved_search') {
         if (parent.document.getElementById('edusharing_preview_image'))
             parent.document.getElementById('edusharing_preview_image').style.display = 'none';
-        parent.document.getElementById('edusharing_title_display_label').style.display = 'none';
-        parent.document.getElementById('edusharing_title_display').style.display = 'none';
         if (parent.document.getElementById('edusharing_fieldset_version'))
             parent.document.getElementById('edusharing_fieldset_version').style.display = 'none';
         parent.document.getElementById('edusharing_fieldset_savedsearch').style.display = 'block';
@@ -250,22 +291,17 @@ function setSavedSearchPreview(editor) {
             sortProperty: node.savedsearch_sortproperty,
             template: node.savedsearch_template,
         },
-        success: function (response) {
-            if (parent) {
-                parent.document.getElementById(
-                    'edusharing_savedsearch_preview',
-                ).innerHTML = JSON.parse(response);
-            } else {
-                document.getElementById('edusharing_savedsearch_preview').innerHTML = JSON.parse(
-                    response,
-                );
-            }
+        success: async function (response) {
+            const previewContainer = await waitForElement(
+                parent?.document ?? document,
+                '#edusharing_savedsearch_preview',
+            );
+            previewContainer.innerHTML = JSON.parse(response);
         },
         error: function () {
             if (parent) {
-                parent.document.getElementById(
-                    'edusharing_savedsearch_preview',
-                ).innerHTML = JSON.parse(response);
+                parent.document.getElementById('edusharing_savedsearch_preview').innerHTML =
+                    JSON.parse(response);
             } else {
                 document.getElementById('edusharing_savedsearch_preview').innerHTML =
                     editor.lang.edusharing.saved_search_preview_error;
@@ -274,7 +310,7 @@ function setSavedSearchPreview(editor) {
     });
 }
 
-function getPreviewUrl() {
+async function getPreviewUrl(nodeId = node.id) {
     // FIXME: This function is used by insertEduObject to create a database entry. When doing this,
     // the ticket is persisted in the database and the preview image cannot be loaded once the
     // ticket expires.
@@ -282,9 +318,9 @@ function getPreviewUrl() {
     // TODO: Figure out how to grant permissions to frontend users, who don't provide any
     // authentication.
     return (
-        `${appconfig.repo_url}preview` +
-        `?nodeId=${encodeURIComponent(node.id)}`
-        // + `&ticket=${encodeURIComponent(ticket)}`
+        `${(await getAppConfig()).repo_url}preview` +
+        `?nodeId=${encodeURIComponent(nodeId)}` +
+        `&ticket=${encodeURIComponent(await getTicket())}`
 
         // Including the ticket poses the problems described above. By omitting it, an authenticated
         // user can access the preview via cookie authentication and not-authenticated users can
@@ -293,7 +329,12 @@ function getPreviewUrl() {
     );
 }
 
-function insertEduObject(editor) {
+/**
+ * Called after the edu-sharing dialog is confirmed.
+ *
+ * Inserts a new edu-sharing element into the editor content or updates an existing one.
+ */
+async function insertEduObject(editor) {
     if (node.mediatype.indexOf('video') !== -1 || node.mediatype.indexOf('image') !== -1) {
         var obj = editor.document.createElement('img');
         switch (parent.document.querySelector('input[name="edusharing_float"]:checked').value) {
@@ -308,13 +349,13 @@ function insertEduObject(editor) {
         }
         obj.setStyle('width', parent.document.getElementById('edusharing_width').value + 'px');
         obj.setStyle('height', parent.document.getElementById('edusharing_height').value + 'px');
-        obj.setAttribute('src', getPreviewUrl());
+        obj.setAttribute('src', await getPreviewUrl());
     } else if (node.mediatype == 'saved_search') {
         var obj = editor.document.createElement('img');
         obj.setStyle('display', 'block');
         obj.setStyle('width', 'auto');
         obj.setStyle('height', '300px');
-        obj.setAttribute('src', getPreviewUrl());
+        obj.setAttribute('src', await getPreviewUrl());
         obj.setAttribute('data-edusharing_savedsearch_limit', node.savedsearch_limit);
         obj.setAttribute('data-edusharing_savedsearch_sortproperty', node.savedsearch_sortproperty);
         obj.setAttribute('data-edusharing_savedsearch_template', node.savedsearch_template);
@@ -332,7 +373,7 @@ function insertEduObject(editor) {
         obj.setAttribute('data-edusharing_edited', 'true');
     }
 
-    obj.setAttribute('data-edusharing_objecturl', node.object_url);
+    obj.setAttribute('data-edusharing_node-id', node.id);
     obj.setAttribute('data-edusharing_mimetype', node.mimetype);
     obj.setAttribute('data-edusharing_mediatype', node.mediatype);
 
@@ -344,7 +385,6 @@ function insertEduObject(editor) {
     else obj.setAttribute('data-edusharing_version', node.version);
 
     obj.setAttribute('data-edusharing_title', node.title);
-    obj.setAttribute('data-edusharing_preview', getPreviewUrl());
 
     editor.insertElement(obj);
 }
@@ -423,8 +463,8 @@ function getEditDialogHtml(editor) {
     }
 
     if (node.mediatype == 'saved_search') {
+        // FIXME: iframe won't work anymore.
         var html =
-            '<iframe style="display: none" id="edusharing_repository_frame" src=""></iframe>' +
             '<div id="edusharing_object_dialog">' +
             '<label for="edusharing_title_display" id="edusharing_title_display_label">' +
             editor.lang.edusharing.title +
@@ -509,12 +549,34 @@ function getEditDialogHtml(editor) {
     return html;
 }
 
+async function openRepositoryTab(additionalParams = '') {
+    repositoryTab = parent.window.open(
+        `${(await getAppConfig()).repo_url}components/search` +
+            `?ticket=${encodeURIComponent(await getTicket())}` +
+            '&reurl=WINDOW' +
+            additionalParams,
+        'repository',
+    );
+}
+
+parent.window.focusRepositoryTab = () => {
+    if (repositoryTab && !repositoryTab.closed) {
+        parent.window.open('', 'repository');
+    } else {
+        openRepositoryTab();
+    }
+};
+
 function getInsertDialogHtml(editor) {
     var html =
-        '<iframe id="edusharing_repository_frame" src="' +
-        `${appconfig.repo_url}components/search` +
-        `?ticket=${encodeURIComponent(ticket)}` +
-        '&reurl=IFRAME"></iframe>' +
+        '<div id="edusharing_choose_element_notice_container">' +
+        '<p id=edusharing_choose_element_notice>' +
+        editor.lang.edusharing.choose_element_notice +
+        '</p>' +
+        '<button onclick="focusRepositoryTab()" type="button">' +
+        editor.lang.edusharing.go_to_edu_sharing +
+        '</button>' +
+        '</div>' +
         '<div id="edusharing_object_dialog" style="display:none">' +
         '<img id="edusharing_preview_image" src="">' +
         '<label for="edusharing_title_display" id="edusharing_title_display_label">' +
@@ -610,4 +672,25 @@ function getInsertDialogHtml(editor) {
         '</div>';
 
     return html;
+}
+
+// From https://stackoverflow.com/questions/5525071/how-to-wait-until-an-element-exists/61511955#61511955
+function waitForElement(document, selector) {
+    return new Promise((resolve) => {
+        if (document.querySelector(selector)) {
+            return resolve(document.querySelector(selector));
+        }
+
+        const observer = new MutationObserver((mutations) => {
+            if (document.querySelector(selector)) {
+                resolve(document.querySelector(selector));
+                observer.disconnect();
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+        });
+    });
 }

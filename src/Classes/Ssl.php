@@ -20,6 +20,12 @@ class Ssl implements \TYPO3\CMS\Core\SingletonInterface
         return $this->formatPemKey($publicKey);
     }
 
+    public function getPrivateKey(): string
+    {
+        $privateKey = $this->config->get(Config::APP_PRIVATE_KEY);
+        return $this->formatPemKey($privateKey);
+    }
+
     public function sign(string $data): string
     {
         $privateKey = $this->config->get(Config::APP_PRIVATE_KEY);

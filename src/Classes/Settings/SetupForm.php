@@ -18,6 +18,16 @@ class SetupForm
             <script>
                 function edusharingSetup(event) {
                     event.preventDefault();
+                    const setupUrl = TYPO3.settings.ajaxUrls['edusharing_setup'];
+                    if (!setupUrl) {
+                        require(['TYPO3/CMS/Backend/Notification'], (Notification) => 
+                            Notification.error(
+                                'Failed to fetch plugin data. ' +
+                                'Please reload the page and try again.',
+                            ),
+                        );
+                        return;
+                    }
                     const repoUrl = $('#em-$parameter[fieldName]')[0].value;
                     if (!confirm(
                         'We will try to fetch repository information from ' + repoUrl + '. '
@@ -27,7 +37,7 @@ class SetupForm
                         return;
                     }
                     $.ajax({
-                        url: TYPO3.settings.ajaxUrls['edusharing_setup'],
+                        url: setupUrl,
                         method: 'POST',
                         data: {
                             repoUrl,

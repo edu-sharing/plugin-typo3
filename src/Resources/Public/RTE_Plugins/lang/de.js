@@ -1,5 +1,7 @@
 CKEDITOR.plugins.setLang('edusharing', 'de', {
     buttonlabel: 'edu-sharing Objekt einfügen oder editieren',
+    choose_element_notice: 'Wählen Sie ein Element aus edu-sharing und wählen Sie "übernehmen".',
+    go_to_edu_sharing: 'Zu edu-sharing',
     title: 'Titel',
     height: 'Höhe',
     width: 'Breite',

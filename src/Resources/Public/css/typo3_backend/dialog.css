@@ -4,14 +4,26 @@
     padding: 0;
 }
 
-#edusharing_repository_frame {
-    position: absolute;
-    height: 100%;
-    width: 100%;
-    border: 0;
+.dialog-container {
+    display: flex;
+    min-height: calc(100% - 15px);
+}
+
+#edusharing_choose_element_notice_container {
+    margin: auto;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#edusharing_choose_element_notice {
+    color: #333;
+    font-size: large;
 }
 
 #edusharing_object_dialog {
+    flex-grow: 1;
     padding: 15px;
 }
 

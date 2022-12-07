@@ -3,49 +3,54 @@
 namespace Metaventis\Edusharing;
 
 use Exception;
-use Metaventis\Edusharing\Settings\Config;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use Metaventis\Edusharing\Settings\Config;
+use Metaventis\Edusharing\EduRestClient;
+
+
 
 class Library implements \TYPO3\CMS\Core\SingletonInterface
 {
     private $config;
     private $ssl;
+    private $eduRestClient;
 
     public function __construct()
     {
         $this->config = GeneralUtility::makeInstance(Config::class);
         $this->ssl = GeneralUtility::makeInstance(Ssl::class);
+        $this->eduRestClient = GeneralUtility::makeInstance(EduRestClient::class);
     }
 
-    public function getContenturl($eduObj, $displayMode = 'inline')
+    public function getContenturl(EdusharingObject $eduObj, $displayMode = 'inline')
     {
         $contenturl = $this->config->get(Config::REPO_URL) . '/renderingproxy';
         $contenturl .= '?app_id=' . urlencode($this->config->get(Config::APP_ID));
         $contenturl .= '&rep_id=' . $this->config->get(Config::REPO_ID);
-        $contenturl .= '&obj_id=' . $eduObj['nodeid'];
-        $contenturl .= '&resource_id=' . urlencode($eduObj['uid']);
-        $contenturl .= '&course_id=' . urlencode($eduObj['contentid']);
+        $contenturl .= '&obj_id=' . $eduObj->nodeId;
+        $contenturl .= '&resource_id=' . urlencode($eduObj->uid);
+        $contenturl .= '&course_id=' . urlencode($eduObj->contentId);
         $contenturl .= '&display=' . $displayMode;
         if ($displayMode === 'window') {
             $contenturl .= '&closeOnBack=true';
         }
         $contenturl .= '&width=' . $_GET['edusharing_width'];
-        $contenturl .= '&height='  . $_GET['edusharing_height'];
+        $contenturl .= '&height=' . $_GET['edusharing_height'];
         $contenturl .= '&language=' . 'de';
-        $contenturl .= '&version=' . $eduObj['version'];
+        $contenturl .= '&version=' . $eduObj->version;
         $contenturl .= $this->getSecurityParams($eduObj);
         return $contenturl;
     }
 
-    public function getSecurityParams($eduObj)
+    public function getSecurityParams(EdusharingObject $eduObj)
     {
         $user = $this->getUser();
         // Get a ticket for the user to generate a user record on the edu-sharing instance in case it didn't exist before. This uses a
         // side-effect of `getTicket()`.
         // TODO: Find a more elegant solution, that won't do additional work if the user already exists and doesn't rely on side-effects.
         // Also don't make it a side-effect of this function.
-        $this->getTicket($user);
+        $this->getTicket();
 
         $encryptedUsername = $this->ssl->encrypt($user['username']);
 
@@ -53,55 +58,37 @@ class Library implements \TYPO3\CMS\Core\SingletonInterface
         $ts = round(microtime(true) * 1000);
         $paramString .= '&ts=' . $ts;
         $paramString .= '&u=' . urlencode(base64_encode($encryptedUsername));
-        $signature = $this->ssl->sign($this->config->get(Config::APP_ID) . $ts . $eduObj['nodeid']);
+        $signature = $this->ssl->sign($this->config->get(Config::APP_ID) . $ts . $eduObj->nodeId);
         $signature = base64_encode($signature);
         $paramString .= '&sig=' . urlencode($signature);
-        $paramString .= '&signed=' . urlencode($this->config->get(Config::APP_ID) . $ts . $eduObj['nodeid']);
+        $paramString .= '&signed=' . urlencode($this->config->get(Config::APP_ID) . $ts . $eduObj->nodeId);
         $paramString .= '&ticket=' . urlencode(base64_encode($this->ssl->encrypt($this->getTicket())));
 
         return $paramString;
     }
 
-    public function getTicket(array $user = null)
+    public function getTicket(): string
     {
-        if (!$user) {
-            $user = $this->getUser();
-        }
-        $userData = $this->readUserData($user);
-        $repoUrl = $this->config->get(Config::REPO_URL);
-        $eduSoapClient = new EduSoapClient($repoUrl . '/services/authbyapp?wsdl');
+        $username = $this->getUser()['username'];
 
+        // FIXME: the session is not persisted across requests, so this will usually not work and
+        // when it does, it sends redundant requests checking a ticket we just fetched.
         if (isset($_SESSION["repository_ticket"])) {
             // ticket available.. is it valid?
-            $params = array("userid" => $userData['userid'], "ticket" => $_SESSION["repository_ticket"]);
-            $alfReturn = $eduSoapClient->checkTicket($params);
-            if ($alfReturn === true) {
+            $isValid = $this->eduRestClient->isTicketValid($_SESSION["repository_ticket"]);
+            if ($isValid) {
                 return $_SESSION["repository_ticket"];
             }
         }
 
-        $paramsTrusted = array(
-            "applicationId" => $this->config->get(Config::APP_ID),
-            "ticket" => session_id(),
-            "ssoData" => array_map(
-                function ($key, $value) {
-                    return ['key' => $key, 'value' => $value];
-                },
-                array_keys($userData),
-                $userData
-            )
-        );
-
-        $alfReturn = $eduSoapClient->authenticateByTrustedApp($paramsTrusted);
-        $ticket = $alfReturn->authenticateByTrustedAppReturn->ticket;
-
+        $ticket = $this->eduRestClient->getTicket($username);
         $_SESSION["repository_ticket"] = $ticket;
         return $ticket;
     }
 
     public function getSavedSearch($nodeId, $maxItems, $skipCount, $sortProperty, $template)
     {
-        $url = $this->config->get(Config::REPO_URL) . 'rest/search/v1/queriesV2/load/';
+        $url = $this->config->get(Config::REPO_URL) . 'rest/search/v1/queries/load/';
         $url .= $nodeId;
         $url .= '?';
         $url .= 'maxItems=' . $maxItems;
@@ -138,6 +125,10 @@ class Library implements \TYPO3\CMS\Core\SingletonInterface
             return '<span class="edusharing_saved_search_empty">Kein Suchergebnis.</span>';
         }
         $return = '';
+        // Note that we do not provide tickets for preview images and link targets. Saved searches
+        // are only supported with enabled guest user in edu-sharing. We could make it work by
+        // adding tickets to the URLs here, but that would expose a regular user session to the
+        // public in case "esguest" is not configured as guest user in edu-sharing.
         if ($template == 'card') {
             foreach ($result['nodes'] as $node) {
                 $return .= '<a class="edusharing_saved_search ' . $template . '" target="_blank" ' .

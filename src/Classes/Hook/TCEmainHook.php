@@ -2,7 +2,9 @@
 
 namespace Metaventis\Edusharing\Hook;
 
+use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use Metaventis\Edusharing\EdusharingObject;
 
 class TCEmainHook
@@ -13,24 +15,21 @@ class TCEmainHook
     private function processContent($content)
     {
         $formerObjects = array();
-        $rows = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\TYPO3\CMS\Core\Database\ConnectionPool::class)
+        $rows = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getConnectionForTable('tx_edusharing_object')
             ->select(
                 ['*'],
                 'tx_edusharing_object',
-                ['contentid' => $this->contentId]
+                ['contentId' => $this->contentId]
             )
             ->fetchAll();
 
         foreach ($rows as $row) {
-            $formerObjects[$row['uid']] = new EdusharingObject(
-                $row['objecturl'],
-                $row['contentid'],
-                $row['title'],
-                $row['mimetype'],
-                $row['version'],
-                $row['uid']
-            );
+            $eduSharingObject = EdusharingObject::fromDbRow($row);
+            if (empty($eduSharingObject->usageId)) {
+                $eduSharingObject->lookUpAndSaveUsageId();
+            }
+            $formerObjects[$row['uid']] = $eduSharingObject;
         }
 
         if ($content) {
@@ -40,29 +39,55 @@ class TCEmainHook
             $elements = $xpath->query('//*[@data-edusharing_uid]');
             foreach ($elements as $element) {
                 $eduSharingObject = new EdusharingObject(
-                    $element->getAttribute('data-edusharing_objecturl'),
+                    $element->getAttribute('data-edusharing_uid'),
+                    $element->getAttribute('data-edusharing_node-id'),
                     $this->contentId,
+                    // We don't save the usage ID as attribute and we don't need it here.
+                    '',
                     $element->getAttribute('data-edusharing_title'),
                     $element->getAttribute('data-edusharing_mimetype'),
                     $element->getAttribute('data-edusharing_version')
                 );
                 // Add
                 if (empty($element->getAttribute('data-edusharing_uid'))) {
+                    // error_log("Add new object: " . $eduSharingObject->nodeId);
                     $eduSharingObject->add();
                     $element->setAttribute('data-edusharing_uid', $eduSharingObject->uid);
                 }
                 // Edit
                 else if ($element->getAttribute('data-edusharing_edited') == 'true') {
+                    // error_log("Edit existing object: " . $eduSharingObject->nodeId);
                     $element->removeAttribute('data-edusharing_edited');
                     $eduSharingObject->add();
                     $element->setAttribute('data-edusharing_uid', $eduSharingObject->uid);
                 }
-                // Keep untouched
-                else if ($eduSharingObject->exists()) {
+                // Keep untouched.
+                //
+                // TODO: add `usageId`s to existing objects if not present (migration)
+                else if ($formerObjects[$eduSharingObject->uid]) {
+                    // error_log("Leave existing object: " . $eduSharingObject->nodeId);
+
+                    // Migrate old entries, that don't have the `node-id` attribute (needed for
+                    // preview images in the editor).
+                    if (empty($eduSharingObject->nodeId)) {
+                        $element->setAttribute(
+                            'data-edusharing_node-id',
+                                $formerObjects[$eduSharingObject->uid]->nodeId
+                        );
+                    }
+
                     unset($formerObjects[$eduSharingObject->uid]);
                 }
+                // The `img` elements are only used as images inside the editor. They always need a
+                // fresh ticket as parameter in their `src` attribute to work. In the final page
+                // view, the `img` elements are replaced with rendered content.
+                //
+                // We could basically remove the `src` attribute, but the editor will discard our
+                // image when we do. So we just strip the ticket parameter.
+                $element->setAttribute('src', strtok($element->getAttribute('src'), '&'));
             }
-            $content = str_replace(array('<html>', '<body>'), '', $doc->saveHTML()); // Remove tags added by ::loadHTML()
+            // Remove tags added by ::loadHTML().
+            $content = str_replace(array('<html>', '</html>', '<body>', '</body>'), '', $doc->saveHTML());
         }
 
         // Delete
@@ -94,6 +119,32 @@ class TCEmainHook
         }
         if (!is_numeric($id)) {
             EdusharingObject::updateContentId($id, $pObj->substNEWwithIDs[$id]);
+        }
+    }
+
+    // When an entire page is deleted, delete all usages of objects on that page.
+    public function processCmdmap_deleteAction(
+        $table,
+        $id,
+        array $record,
+        &$recordWasDeleted,
+        DataHandler $dataHandler
+    )
+    {
+        if ($table != 'tt_content') {
+            return;
+        }
+        $rows = GeneralUtility::makeInstance(ConnectionPool::class)
+            ->getConnectionForTable('tx_edusharing_object')
+            ->select(
+                ['*'],
+                'tx_edusharing_object',
+                ['contentId' => $id]
+            )
+            ->fetchAll();
+        foreach ($rows as $row) {
+            $eduSharingObject = EdusharingObject::fromDbRow($row);
+            $eduSharingObject->delete();
         }
     }
 }

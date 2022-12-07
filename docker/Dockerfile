@@ -11,9 +11,11 @@ FROM base AS dev-0
 COPY --chown=www-data:www-data src /var/www/html/typo3conf/ext/edusharing
 
 FROM base AS dev-1
-RUN pecl install xdebug
+# xdebug 3.1.6 is the latest version still compatible with php 7.
+RUN pecl install xdebug-3.1.6
 RUN docker-php-ext-enable xdebug
 COPY docker/xdebug.ini /usr/local/etc/php/conf.d/xdebug.ini
+
 # We want to provide a different Typo3 configuration in dev mode. We cannot directly copy files to
 # `typo3conf` since the folder is bound to a volume in the upstream Docker image and any updates to
 # the folder in our image (when switching between dev and non-dev) wouldn't be reflected in an

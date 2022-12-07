@@ -39,6 +39,39 @@ beides gelöscht.
 Wird im Frontend ein edu-sharing-Objekt erkannt, wird dieses per AJAX über das Repositorium bzw. den
 Renderingservice geladen und mit Lizenzinformationen und Metadaten angezeigt.
 
+### Usage of Saved Searches
+
+Usage of saved searches has some pre-requirements and restrictions:
+
+1.  There has to be a guest user configured in edu-sharing.  
+    This is needed for preview images and the ability to open search results in edu-sharing for page visitors.
+2.  Saved searches have to be made public via the "invite" dialog.
+3.  Only public elements will be listed in search results.
+
+## Compatibility
+
+Different Typo versions are supported by different branches of this plugin.
+
+SOAP-based versions (compatible with Edu-Sharing up to 6.0):
+
+- `typo3v8-soap`
+- `typo3v9-soap`
+- `typo3v10-soap`
+
+REST-based versions (compatible with Edu-Sharing 7.0 and higher):
+
+- `typo3v10`
+
+Note that SOAP-based versions rely on third-party cookies and IFrames, which might stop working due
+to stricter cookie-handling behavior in recent browsers.
+
+## Preparation
+
+Initialize the submodule containing Edu-Sharing-Library used by this plugin:
+```sh
+git submodule update --init
+```
+
 ## Installation
 
 This describes the installation of the plugin in an existing Typo3 instance. For a testing setup
@@ -57,30 +90,28 @@ that includes a Typo3 installation, see [Try Out Using Docker](#try-out-using-do
    cp -r ./src $TYPO3_ROOT/public/typo3conf/ext/edusharing
    ```
 
-2. In the Typo3 web UI, go to _Extensions_ and click _Activate_ on the extension _Edusharing_.
+2. In the Typo3 web UI, go to **Extensions** and click **Activate** on the extension **Edusharing**.
 
 3. Register the plugin with Edu-Sharing:
 
-   - Got to the extension settings of the _Edusharing_ extension:  
-     **In Typo3 v8:** On the _Extensions_ page, click the settings button on the row of the
-     _Edusharing_ extension.  
-     **In Typo3 v9:** Got to _Settings_ / _Configure Extensions_ / _edusharing_
-   - On the _Setup_ tab, copy the URL of the application XML to your clipboard.
-   - Then, in your Edusharing instance, go to _Admin-Tools_ / _Remote-systems_, paste the URL and
-     click _Connect_.
-   - Copy the URL of your Edusharing instance up to and including `/edu-sharing/`.
-   - Go back to the extension settings of Typo3, paste the URL under _Repository URL_, and click
-     _Setup repository_.
+   - Reload the page
+   - Go to **Settings** / **Configure Extensions** / **edusharing**
+   - On the **Setup** tab, copy the URL of **Application XML** to your clipboard
+   - Then, in your Edusharing instance, go to **Admin-Tools** / **Remote-systems**, paste the URL
+     and click **Connect**
+   - Copy the URL of your Edusharing instance up to and including `/edu-sharing/`
+   - Go back to the extension settings of Typo3, paste the URL under **Repository URL**, and click
+     **Setup repository**
 
 4. Include the Typoscript page template (required when embedding saved searches):  
    In the Typo3 backend
-   - navigate to _Template_
+   - navigate to **Template**
    - select your page in the page tree
    - select "Info / Modify" in the dropdown menu at the page top
-   - click _Edit the whole template record_
-   - go to the _Includes_ tab
-   - move the entry "Edusharing CSS (edusharing)" from _Available Items_ to _Selected Items_
-   - click _Save_
+   - click **Edit the whole template record**
+   - go to the **Includes** tab
+   - move the entry "Edusharing CSS (edusharing)" from **Available Items** to **Selected Items**
+   - click **Save**
 
 ## Try Out Using Docker
 
@@ -94,19 +125,27 @@ and development purposes.
 
 ### Installation Steps
 
-1. Get
-   [edu-sharing-community](https://scm.edu-sharing.com/edu-sharing-community/edu-sharing-community)
-   and
-
-   - Create the file `deploy/docker/.env` (either freshly or by copying `.env.sample`) and add
-     the following line
-     ```
-     COMMON_BIND_HOST=0.0.0.0
-     ```
-   - Run
-     ```
-     ./deploy/docker/deploy.sh start
-     ```
+1. Create and configure an edu-sharing instance using
+   [edu-sharing-dev-tools](https://scm.edu-sharing.com/edu-sharing/edu-sharing-dev-tools).
+    - Setup Edu-Sharing's development environment:  
+      ```sh
+      git clone https://scm.edu-sharing.com/edu-sharing/edu-sharing-dev-tools.git
+      cd edu-sharing-dev-tools
+      cp .env.example .env
+      $EDITOR .env  # Set `EDU_ROOT` to your preferred location
+      ./edu.sh ce add maven/release/7.0 -t origin/maven/release/7.0
+      ```
+    - Set Edu-Sharing to be accessible from other hosts (needed for access from Typo's docker container)
+      - Under the installation path (configured as `EDU_ROOT` above), go to `community/link/maven/fixes/7.0/deploy/deploy/docker`
+      - Copy `.env.sample` to `.env` and set
+        ```
+        COMMON_BIND_HOST=0.0.0.0
+        ```
+    - Start Edu-Sharing
+      - In the directory `deploy/deploy/docker` (see above), run
+        ```
+        ./deploy.sh rstart
+        ```
 
 2. In this plugin directory:
 
@@ -132,11 +171,11 @@ and development purposes.
 
    - Find The gateway of the network of `edu-sharing-community` by inspecting it, e.g.,
      ```
-     docker network inspect compose_default | grep Gateway
+     docker network inspect community-docker-maven-fixes-7-0_default | grep Gateway
      ```
-   - In the Typo3 backend, go to _Settings_ / _Extension Configuration_ / _edusharing_ /
-     _Extension_.
-   - Under _App URL_, change "localhost" to the gateway address obtained above, e.g.,
+   - In the Typo3 backend, go to **Settings** / **Extension Configuration** / **edusharing** /
+     **Extension**.
+   - Under **App URL**, change "localhost" to the gateway address obtained above, e.g.,
      "http://172.19.0.1:8000/".
    - Save the changes and close the dialog.
 
@@ -170,11 +209,11 @@ until it is destroyed.
 
 ### Start In Develop Mode
 
-- Create the directory `mnt/html` inside this repository:
+- Create the directory structure under `mnt` inside this repository:
   ```
-  mkdir -p mnt/html
+  mkdir -p mnt/{html,typo3temp}
   ```
-  The directory needs to be completely empty when first starting the Docker containers in develop
+  The directories need to be completely empty when first starting the Docker containers in develop
   mode for the Docker image's files to be mirrored as intended.
 - Start the containers with the following command:
   ```
@@ -193,7 +232,7 @@ mapping to a debugger of your choice.
 
 ```
 docker-compose down -v
-sudo rm -r mnt/html
+sudo rm -r mnt
 ```
 
 ## Troubleshooting
@@ -202,13 +241,27 @@ sudo rm -r mnt/html
 
 Typo3 creates log files within its own directory structure in `typo3temp/var/log`.
 
+```sh
+docker exec -ti plugin-typo3-typo3-1 bash -c 'tail -f typo3temp/var/log/*.log'
+```
+
+### PHP Error Logs
+
+The container logs include access logs and error messages of Xdebug if it cannot connect to a debugger. To filter for relevant output use e.g.
+```sh
+# bash
+docker logs -f plugin-typo3-typo3-1 > /dev/null 2> >(grep -v Xdebug >&2)
+# fish
+docker logs -f plugin-typo3-typo3-1 > /dev/null 2>| grep -v Xdebug
+```
+
 ### Typo3 Backend Users Are Signed In As "guest" In Edu-Sharing
 
 The host verification of Edu-Sharing might have failed. Check the `catalina.out` logfile.
 
 #### Invalid Host: `::1`
 
-- Go the Edu-Sharing / _Admin-Tools_ / _Remote-systems_ and edit your Typo3-plugin entry.
+- Go the Edu-Sharing / **Admin-Tools** / **Remote-systems** and edit your Typo3-plugin entry.
 - Add a property:
 
   | Key          | Value |
@@ -219,7 +272,7 @@ The host verification of Edu-Sharing might have failed. Check the `catalina.out`
 
 For testing purposes, you allow arbitrary hosts:
 
-- Go the Edu-Sharing / _Admin-Tools_ / _Remote-systems_ and edit your Typo3-plugin entry.
+- Go the Edu-Sharing / **Admin-Tools** / **Remote-systems** and edit your Typo3-plugin entry.
 - Modify the property
 
   | Key  | Value |
