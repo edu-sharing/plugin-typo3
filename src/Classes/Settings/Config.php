@@ -64,7 +64,9 @@ class Config implements \TYPO3\CMS\Core\SingletonInterface
 
     public function set(string $key, string $value): void
     {
-        $this->extensionConfiguration->set($this::EXTENSION_KEY, $key, $value);
+        $values = $this->extensionConfiguration->get($this::EXTENSION_KEY);
+        $values[$key] = $value;
+        $this->extensionConfiguration->set($this::EXTENSION_KEY, $values);
     }
 
     private function generateAppId(): string

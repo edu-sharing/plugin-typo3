@@ -9,7 +9,7 @@ use Metaventis\Edusharing\Settings\Config;
 
 class Edu extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
 {
-    private $responseFactory;
+    protected $responseFactory;
 
     public function __construct(ResponseFactoryInterface $responseFactory)
     {

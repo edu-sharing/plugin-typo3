@@ -61,6 +61,7 @@ SOAP-based versions (compatible with Edu-Sharing up to 6.0):
 REST-based versions (compatible with Edu-Sharing 7.0 and higher):
 
 - `typo3v10`
+- `typo3v11`
 
 Note that SOAP-based versions rely on third-party cookies and IFrames, which might stop working due
 to stricter cookie-handling behavior in recent browsers.

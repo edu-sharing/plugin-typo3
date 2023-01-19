@@ -1,6 +1,6 @@
 ARG dev=0
 
-FROM martinhelmich/typo3:10 as base
+FROM martinhelmich/typo3:11 as base
 # We need to initialize `typo3conf/ext` with the correct permissions, so it won't be created as a
 # root-owned folder by Docker when binding the volume for our plugin at runtime in dev mode.
 COPY --chown=www-data:www-data docker/typo3conf /var/www/html/typo3conf
